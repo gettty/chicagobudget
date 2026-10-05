@@ -1,10 +1,10 @@
 name: Site checks
 on:
   pull_request:
-    paths: ['site/**', 'build/**', 'data/splits/**', 'data/public/**', 'tests/check_site_dist.py', '.github/workflows/site.yml']
+    paths: ['site/**', 'lakefront/**', 'build/**', 'data/splits/**', 'data/public/**', 'scripts/assemble_production_site.py', 'tests/check_site_dist.py', 'tests/check_combined_site.py', '.github/workflows/site.yml']
   push:
     branches: [main]
-    paths: ['site/**', 'build/**', 'data/splits/**', 'data/public/**', 'tests/check_site_dist.py', '.github/workflows/site.yml']
+    paths: ['site/**', 'lakefront/**', 'build/**', 'data/splits/**', 'data/public/**', 'scripts/assemble_production_site.py', 'tests/check_site_dist.py', 'tests/check_combined_site.py', '.github/workflows/site.yml']
 permissions:
   contents: read
 jobs:
@@ -36,3 +36,20 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: python ../tests/check_site_dist.py dist
+      - run: npm ci
+        working-directory: lakefront
+      - run: npm run data
+        working-directory: lakefront
+      - run: npm test
+        working-directory: lakefront
+      - run: npm run build
+        working-directory: lakefront
+        env:
+          VITE_DATA_BASE: /visual-data/
+          SITE_URL: https://chicagobudget.com
+      - name: Assemble and check production bundle
+        working-directory: .
+        run: |
+          python scripts/assemble_production_site.py
+          python tests/check_site_dist.py site/dist
+          python tests/check_combined_site.py site/dist

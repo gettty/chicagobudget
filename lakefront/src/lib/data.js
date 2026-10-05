@@ -1,7 +1,7 @@
 // The budget store. core.json paints the first screen; tree.json (all 47,360 boxes) loads in the
 // background; per-box details load on demand. Nothing here is fetched from a third party.
 
-const BASE = import.meta.env.BASE_URL + 'data/';
+const BASE = import.meta.env.VITE_DATA_BASE || import.meta.env.BASE_URL + 'data/';
 const byId = new Map();
 let core = null;
 let treePromise = null;

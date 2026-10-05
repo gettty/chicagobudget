@@ -12,9 +12,11 @@ function budgetFacts() {
     const core = JSON.parse(readFileSync(resolve(__dirname, 'public/data/core.json'), 'utf8'));
     const F = core.facts;
     const site = (process.env.SITE_URL || '').replace(/\/$/, '');
+    const dataBase = process.env.VITE_DATA_BASE || '/data/';
+    if (!dataBase.startsWith('/') || !dataBase.endsWith('/')) throw new Error('VITE_DATA_BASE must be an absolute path ending in /');
     return {
       SITE_URL: site,
-      SITE_META: site ? `<meta property="og:url" content="${site}/">\n<link rel="canonical" href="${site}/">` : '',
+      DATA_BASE: dataBase,
       TOTAL_WORDS: words(F.total),
       BOXES: count(core.meta.nodes),
       PROGRAMS: count(core.bubbles.length),
@@ -27,8 +29,10 @@ function budgetFacts() {
     name: 'budget-facts',
     transformIndexHtml: {
       order: 'pre',
-      handler(html) {
+      handler(html, context) {
         const v = values();
+        const page = context.path.includes('methods') ? '/methods' : '/';
+        v.SITE_META = v.SITE_URL ? `<meta property="og:url" content="${v.SITE_URL}${page}">\n<link rel="canonical" href="${v.SITE_URL}${page}">` : '';
         return html.replace(/%([A-Z_]+)%/g, (m, k) => v[k] ?? m);
       },
     },
