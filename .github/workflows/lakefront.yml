@@ -1,0 +1,43 @@
+name: Lakefront checks
+on:
+  pull_request:
+    paths:
+      - 'lakefront/**'
+      - 'data/public/2026/site/**'
+      - '.github/workflows/lakefront.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'lakefront/**'
+      - 'data/public/2026/site/**'
+      - '.github/workflows/lakefront.yml'
+permissions:
+  contents: read
+jobs:
+  lakefront:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: lakefront
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: lakefront/package-lock.json
+      - run: npm ci
+      - run: npm run data
+      - run: npm test
+      - run: npm run build
+      - name: Check static output
+        run: |
+          test -s dist/index.html
+          test -s dist/methods.html
+          test -s dist/data/core.json
+          test -s dist/data/tree.json
+          test -s dist/data/methods.json

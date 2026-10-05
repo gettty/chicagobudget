@@ -1,0 +1,22 @@
+{
+  "name": "chicagobudget-lakefront",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Lakefront: a visual-first, one-page explorer for Chicago's 2026 budgets, built on ChicagoBudget.com's open data.",
+  "scripts": {
+    "data": "python3 scripts/build-data.py",
+    "test": "python3 -m unittest discover -s tests -p 'financial*.py' && node --test tests/*.test.js",
+    "dev": "vite",
+    "build": "vite build && node scripts/postbuild.mjs",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^5.4.21"
+  },
+  "dependencies": {
+    "@fontsource-variable/source-serif-4": "^5.3.0",
+    "@fontsource/big-shoulders-display": "^5.3.0",
+    "d3": "^7.9.0"
+  }
+}
