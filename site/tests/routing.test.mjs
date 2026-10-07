@@ -73,6 +73,20 @@ test('City counted-twice memo descendants keep their own root and parent breadcr
   assert.match(html, /#box=city-twice.services-between-funds/);
 });
 
+test('spine-only ancestors link to real government paths and Parks uses calendar year', async () => {
+  const spine = JSON.parse(readFileSync(new URL('../public/data/spine.json', import.meta.url)));
+  const ancestor = spine.find(n => n.id === 'parks.maintaining-the-parks');
+  assert.ok(ancestor && !ancestor.root, 'ancestor is represented by a rootless spine record');
+  const response = await request('/parks/box/parks.maintaining-the-parks.facilities-management-8460.corporate-fund.611005.1114-0/');
+  const html = await response.text();
+  assert.equal(response.status, 200);
+  assert.match(html, /href="\/parks\/"/);
+  assert.match(html, /href="\/parks\/box\/parks.maintaining-the-parks\/"/);
+  assert.ok(!html.includes('/undefined/'));
+  assert.match(html, /Calendar year 2026/);
+  assert.ok(!html.includes('FY2026'));
+});
+
 test('published caveats, notes and source details are escaped and visible', async () => {
   const id = 'city.health.corporate-fund.0100-2005-0045.met-life';
   const response = await request(`/city/box/${id}/`);

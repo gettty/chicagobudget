@@ -5,7 +5,10 @@ const governments = {city: 'City of Chicago', cps: 'Chicago Public Schools', par
 const basisLabels = {budget: 'In the budget', tied: 'Adds up exactly', gov_estimate: 'Government estimate', paid_to_date: 'Paid so far', proxy: 'Our estimate', residual: 'Leftover', adjustment: 'Adjustment'};
 const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[char]));
 const money = cents => new Intl.NumberFormat('en-US', {style: 'currency', currency: 'USD'}).format(cents / 100);
-const link = node => node.id === 'city-twice' ? '/city/counted-twice/' : node.id === node.root ? `/${node.root}/` : `/${node.root === 'city-twice' ? 'city' : node.root}/box/${encodeURIComponent(node.id)}/`;
+const link = node => {
+  const root = node.root || node.id.split('.')[0];
+  return node.id === 'city-twice' ? '/city/counted-twice/' : node.id === root ? `/${root}/` : `/${root === 'city-twice' ? 'city' : root}/box/${encodeURIComponent(node.id)}/`;
+};
 const safeUrl = value => typeof value === 'string' && /^https?:\/\//i.test(value) ? value : null;
 const htmlResponse = (html, status, head) => new Response(head ? null : html, {status, headers: {'Content-Type': 'text/html; charset=utf-8', 'X-Content-Type-Options': 'nosniff'}});
 const notFound = head => htmlResponse('<!doctype html><html lang="en"><meta charset="utf-8"><title>Budget box not found | Chicago Budget</title><h1>Budget box not found</h1><p>This box is not in the published budget data.</p><a href="/find">Search budgets</a></html>', 404, head);
@@ -19,7 +22,7 @@ async function assetJson(env, path) {
 
 function render(node, children, crumbs, sources, gov) {
   const canonical = `${origin}/${gov}/box/${encodeURIComponent(node.id)}/`;
-  const period = node.period_label || (node.basis === 'paid_to_date' ? '' : gov === 'city' ? 'Calendar year 2026' : gov === 'cps' ? 'FY2026 (July 2025–June 2026)' : 'FY2026');
+  const period = node.period_label || (node.basis === 'paid_to_date' ? '' : gov === 'cps' ? 'FY2026 (July 2025–June 2026)' : 'Calendar year 2026');
   const title = `${node.name} Budget 2026 | Chicago Budget`;
   const description = `${node.name}: ${money(node.amount_cents)} in the ${governments[gov]} ${period || 'budget'} (${basisLabels[node.basis] || node.basis || 'budget'}). Explore the public-source breakdown.`;
   const anchors = crumbs.map(n => `<li><a href="${escape(link(n))}">${escape(n.name)}</a></li>`).join('');
