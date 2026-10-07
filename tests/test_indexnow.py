@@ -112,6 +112,14 @@ class IndexNowTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "nonempty"):
             indexnow.verify_previous(self.previous, self.changes)
 
+    def test_local_key_normalization_matches_assembly(self):
+        key_file = self.folder / "ownership-key"
+        key_file.write_text("12345678abcdef\n")
+        self.assertEqual(indexnow.read_key(key_file), "12345678abcdef")
+        key_file.write_text("invalid/key\n")
+        with self.assertRaises(ValueError):
+            indexnow.read_key(key_file)
+
     def test_key_exact_and_live_canonical(self):
         with self.assertRaisesRegex(ValueError, "exact"):
             indexnow.verify_key("12345678", lambda url: (200, b"12345678\n", url))

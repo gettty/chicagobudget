@@ -13,6 +13,7 @@
   ],
   "env": {
     "production": {
+      "vars": { "ACTION_ANALYTICS_ENABLED": "true" },
       "d1_databases": [
         {
           "binding": "ACTION_COUNTS",
@@ -23,7 +24,7 @@
       ]
     },
     "preview": {
-      "vars": { "ACTION_ANALYTICS_PREVIEW": "true" },
+      "vars": { "ACTION_ANALYTICS_PREVIEW": "true", "ACTION_ANALYTICS_ENABLED": "true" },
       "d1_databases": [
         {
           "binding": "ACTION_COUNTS",

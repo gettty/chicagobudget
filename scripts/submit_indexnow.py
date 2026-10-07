@@ -124,7 +124,7 @@ def validate_live(selected, fetcher=fetch):
 
 def read_key(key_file=None):
     if key_file:
-        key = Path(key_file).read_text(encoding="ascii")
+        key = Path(key_file).read_text(encoding="ascii").strip()
     else:
         key = os.environ.get("INDEXNOW_KEY", "")
     if not re.fullmatch(r"[A-Za-z0-9-]{8,128}", key):
@@ -192,7 +192,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("changes", type=Path, help="Fresh discovery-changes.json alongside discovery-manifest.json")
     parser.add_argument("--submit", action="store_true", help="Explicitly authorize live validation and IndexNow POST")
-    parser.add_argument("--key-file", type=Path, help="Private local file holding exact key, with no trailing newline")
+    parser.add_argument("--key-file", type=Path, help="Private local key file; surrounding whitespace is normalized like release assembly")
     parser.add_argument("--previous-manifest", type=Path, help="Required for --submit: retained prior deployed discovery-manifest.json")
     parser.add_argument("--include-path", action="append", default=[], help="Select up to 20 explicitly reviewed added canonical paths for a bounded initial submission")
     args = parser.parse_args()
