@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 
 const source = (await readFile(new URL('../src/lib/data.js', import.meta.url), 'utf8'))
-  .replace('import.meta.env.BASE_URL', "'/'");
+  .replace('import.meta.env.VITE_DATA_BASE', "'/'");
 
 async function store(fetcher) {
   const previous = globalThis.fetch;

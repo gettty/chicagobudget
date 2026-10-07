@@ -90,6 +90,12 @@ h1 .num { font-size: 1.14em; line-height: .8; background: linear-gradient(transp
 .sentence .num { font-size: 1.22em; font-weight: 700 }
 .tablewrap { display: none; margin-top: 14px; max-height: 340px; overflow: auto; border: 1px solid var(--rule); border-radius: 12px }
 .tablewrap.on { display: block }
+.budget-browse { margin: 24px 0; padding: 20px 24px; border: 1px solid var(--rule); border-radius: 12px; background: var(--wash) }
+.budget-browse h2 { font-size: 19px; margin: 0 0 12px }
+.budget-browse ul { display: flex; flex-wrap: wrap; gap: 10px 28px; padding: 0; margin: 0; list-style: none }
+.budget-browse li { font-size: 14px }
+.budget-browse a { color: inherit; text-underline-offset: 3px }
+.budget-browse .fine { margin: 12px 0 0 }
 table { border-collapse: collapse; width: 100%; font-size: 13px }
 th, td { padding: 7px 12px; border-bottom: 1px solid var(--rule); text-align: left; vertical-align: top }
 th { position: sticky; top: 0; background: #fff; font-weight: 600; color: var(--ink-2) }

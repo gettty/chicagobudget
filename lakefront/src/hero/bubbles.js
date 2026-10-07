@@ -258,7 +258,7 @@ export function initHero(core, { onOpen, lens: startLens }) {
   function fillTable() {
     const tb = document.getElementById('tableBody');
     tb.replaceChildren(...[...nodes].sort((a, b) => b.amount - a.amount).map((d) =>
-      el('tr', null, el('td', null, el('a', { href: '#explore', onclick: (e) => { e.preventDefault(); onOpen(d.id); } }, d.name)), el('td', null, GOV[d.gov].short), el('td', null, PURP[d.purpose].name), el('td', { class: 'n' }, exact(d.amount)))));
+      el('tr', null, el('td', null, el('a', { href: `/${d.gov}/box/${encodeURIComponent(d.id)}/`, onclick: (e) => { e.preventDefault(); onOpen(d.id); } }, d.name)), el('td', null, GOV[d.gov].short), el('td', null, PURP[d.purpose].name), el('td', { class: 'n' }, exact(d.amount)))));
   }
 
   function applyLens(name, first) {
