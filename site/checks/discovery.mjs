@@ -1,11 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync,existsSync} from 'node:fs';
-import {join} from 'node:path';
-const root=join(import.meta.dirname,'..');
+import {dirname,join} from 'node:path';
+import {fileURLToPath} from 'node:url';
+const root=join(dirname(fileURLToPath(import.meta.url)),'..');
 const data=join(root,'public/data');
 const manifest=JSON.parse(readFileSync(join(data,'manifest.json'),'utf8'));
 const publishedManifest=JSON.parse(readFileSync(join(root,'../data/public/2026/site/manifest.json'),'utf8'));
+const lifecycle=JSON.parse(readFileSync(join(root,'src/lib/route_lifecycle.json'),'utf8'));
+const publication=lifecycle.snapshot_publication_revision;
+const treeBase=`https://github.com/gettty/chicagobudget/tree/${publication}/data/public/2026/`;
+const rawBase=`https://raw.githubusercontent.com/gettty/chicagobudget/${publication}/data/public/2026/`;
 const spine=JSON.parse(readFileSync(join(data,'spine.json'),'utf8'));
 const sources=JSON.parse(readFileSync(join(data,'sources.json'),'utf8'));
 const catalog=JSON.parse(readFileSync(join(root,'../data/public/2026/catalog.json'),'utf8'));
@@ -28,12 +33,15 @@ test('guide export has eleven distinct, sourced and fully rendered answers',()=>
 
 test('catalog and three dataset pages expose real JSON downloads, provenance and version',()=>{
  const listing=html('datasets');const catalogSchema=jsonld(listing).find(schema=>schema['@type']==='DataCatalog');assert.ok(catalogSchema);assert.equal(catalogSchema.dataset.length,3);
+ assert.notEqual(publication,publishedManifest.commit);
+ assert.match(listing,/Immutable publication revision/);assert.ok(listing.includes(publication));assert.ok(listing.includes(publishedManifest.commit));
+ assert.ok(listing.includes(`${treeBase}catalog.json`));assert.ok(listing.includes(`${treeBase}site/manifest.json`));
  const checksum=catalog.files.find(file=>file.path==='tree/manifest.json').sha256;
  for(const [gov,sourceUrl] of [['city',sources[297].url],['cps',sources[3931].url],['parks',sources[3794].url]]){
   const page=html(`datasets/2026/${gov}`),schema=jsonld(page).find(value=>value['@type']==='Dataset');assert.ok(schema,gov);
-  assert.equal(schema.version,publishedManifest.commit);assert.equal(schema.dateModified,publishedManifest.run_at.slice(0,10));assert.equal(schema.isBasedOn[0],sourceUrl);assert.ok(schema.distribution.every(download=>download['@type']==='DataDownload'&&download.contentUrl.startsWith('https://raw.githubusercontent.com/gettty/chicagobudget/main/data/public/2026/')));
+  assert.equal(schema.version,publication);assert.equal(schema.identifier,`${publication}:${gov}`);assert.equal(schema.dateModified,publishedManifest.run_at.slice(0,10));assert.equal(schema.isBasedOn[0],sourceUrl);assert.ok(schema.distribution.every(download=>download['@type']==='DataDownload'&&download.contentUrl.startsWith(rawBase)));
   for(const distribution of schema.distribution)assert.ok(existsSync(join(root,'../data/public/2026',distribution.name)),distribution.name);
-  assert.match(page,/integer cents/);assert.ok(page.includes(currency(id(gov).amount_cents)));assert.ok(page.includes(sourceUrl.replaceAll('&','&amp;')));assert.ok(page.includes(checksum));assert.ok(existsSync(join(root,`../data/public/2026/tree/${gov}/_root.json`)));
+  assert.match(page,/integer cents/);assert.match(page,/Source\/export revision/);assert.match(page,/Immutable publication revision/);assert.ok(page.includes(publication));assert.ok(page.includes(publishedManifest.commit));assert.ok(page.includes(`${rawBase}tree/${gov}/_root.json`));assert.ok(page.includes(`${treeBase}catalog.json`));assert.ok(page.includes(currency(id(gov).amount_cents)));assert.ok(page.includes(sourceUrl.replaceAll('&','&amp;')));assert.ok(page.includes(checksum));assert.ok(existsSync(join(root,`../data/public/2026/tree/${gov}/_root.json`)));
  }
  assert.equal(catalogSchema.dataset[0]['@type'],'Dataset');assert.doesNotMatch(listing,/"license":"https?:/);
 });
