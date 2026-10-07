@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "current_budget_year": 2026,
+  "archive_years": [],
+  "next_year": {
+    "year": 2027,
+    "status": "unpublished",
+    "requires_verified_sources": true,
+    "redirect_from_2026": false
+  },
+  "index_excluded_prefixes": ["/find/", "/box-shell/", "/404/"],
+  "lastmod": {}
+}
