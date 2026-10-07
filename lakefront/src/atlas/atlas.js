@@ -136,7 +136,7 @@ export function initAtlas(core) {
     const leaf = !k.virtual && k.leaf;
     const tile = el('div', {
       class: 'tile' + (leaf ? ' leaf' : ''), role: 'button', tabindex: 0,
-      'aria-label': `${k.name}, ${words(k.amount)}, ${pct(t.share)} of ${parent.name}${leaf ? '' : '. Opens'}`,
+      'aria-label': `${k.name}, ${words(k.amount)}, ${money(k.amount)}, ${pct(t.share)} of this box${leaf ? '' : '. Opens'}`,
       style: { left: t.x + 'px', top: t.y + 'px', width: t.w + 'px', height: t.h + 'px', background: base },
       'data-id': k.id,
     });
