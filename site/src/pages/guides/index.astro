@@ -1,0 +1,11 @@
+---
+import Base from '../../layouts/Base.astro';
+import {guides,exportDate,scopeNote} from '../../lib/discovery';
+---
+<Base title="2026 budget explainers" description="Source-backed explanations of Chicago City, CPS and Park District 2026 budget figures, accounting and limits.">
+  <nav aria-label="Breadcrumb"><a href="/">Home</a> / Guides</nav>
+  <section class="hero"><p class="eyebrow">Understand the numbers</p><h1>2026 budget guides</h1><p class="lede">Short answers grounded in the published budget tree and its primary sources. Data export: <time datetime={exportDate}>{exportDate}</time>.</p></section>
+  <p>{scopeNote}</p>
+  <ul>{guides.map(guide=><li><a href={`/guides/${guide.slug}/`}>{guide.title}</a><p>{guide.answer}</p></li>)}</ul>
+  <p><a href="/datasets/">Download and inspect the 2026 datasets</a> · <a href="/gaps">What we could not find</a> · <a href="/sources">All sources</a></p>
+</Base>

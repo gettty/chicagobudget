@@ -1,0 +1,20 @@
+---
+import Base from '../../layouts/Base.astro';
+import {guides,guideSources,tableRows,exportDate,scopeNote,required} from '../../lib/discovery';
+import {exact,manifest} from '../../lib/data';
+export function getStaticPaths(){return guides.map(guide=>({params:{slug:guide.slug},props:{guide}}));}
+const {guide}=Astro.props;
+const rows=tableRows(guide.ids),sources=guideSources(guide.ids);
+const related=guide.related.map(slug=>guides.find(item=>item.slug===slug)).filter(Boolean);
+---
+<Base title={guide.title} description={`${guide.answer} Figures and official sources from the 2026 budget export.`}>
+  <nav aria-label="Breadcrumb"><a href="/">Home</a> / <a href="/guides/">Guides</a> / {guide.title}</nav>
+  <section class="hero"><p class="eyebrow">2026 budget explained</p><h1>{guide.title}</h1><p class="lede">{guide.answer}</p></section>
+  {guide.slug==='city-adopted-budget'&&<p><strong>City adopted net appropriation:</strong> {exact(required('city').amount_cents)}.</p>}
+  {guide.slug==='net-versus-gross'&&<p><strong>Gross City appropriation:</strong> {exact(manifest.gross_city_cents)}. <strong>Net:</strong> {exact(required('city').amount_cents)}. <strong>Counted twice:</strong> {exact(required('city-twice').amount_cents)}.</p>}
+  <h2>Figures in the published tree</h2><div class="table-scroll"><table><caption>2026 amounts in dollars, derived from integer cents; selected rows are not necessarily additive</caption><thead><tr><th scope="col">Budget box</th><th scope="col">Amount</th><th scope="col">Basis</th></tr></thead><tbody>{rows.map(({node,amount,url})=><tr><th scope="row"><a href={url}>{node.name}</a></th><td>{amount}</td><td>{node.basis==='budget'?'Adopted/approved budget':node.basis||'See box'}</td></tr>)}</tbody></table></div>
+  <h2>How to read this</h2><p>{guide.reading}</p><h2>Limits and method</h2><p>{guide.limits}</p><p>{scopeNote} See <a href="/methods">methods</a> and <a href="/gaps">unresolved gaps</a>.</p>
+  <h2>Primary sources</h2><p>These official references are attached to the cited budget boxes in the exported tree, rather than inferred from unrelated search results.</p><ul>{sources.map(source=><li><a href={source.url}>{source.label}</a></li>)}</ul>
+  <p>Data export: <time datetime={exportDate}>{exportDate}</time>. <a href="/datasets/">Dataset, schema and version</a>.</p>
+  <h2>Related questions</h2><ul>{related.map(item=><li><a href={`/guides/${item.slug}/`}>{item.title}</a></li>)}</ul>
+</Base>
