@@ -33,6 +33,15 @@ Validation: `npm run check` and `npm test`. For real browser checks, run `npx pl
 Optional build-time environment variables:
 
 - `PUBLIC_REPO_URL`: an HTTPS GitHub repository URL, such as `https://github.com/owner/repo`. When set, exported, tracked `repo_path` sources without an official URL link to `blob/main/<path>`. Do not configure an unverified repository URL.
-- `PUBLIC_CF_ANALYTICS_TOKEN`: Cloudflare Web Analytics site token. The beacon script is emitted only when this is set. It is not configured for local builds.
+- `PUBLIC_ACTION_ANALYTICS_ENDPOINT=/_events`: enables the optional action-count controls in both Astro and Lakefront builds. Counts remain off for each visitor until explicit consent. DNT/GPC suppress counting. The deployed worker also requires `ACTION_ANALYTICS_ENABLED=true` and the `ACTION_COUNTS` D1 binding.
+- Page-view analytics uses the existing Cloudflare zone-level automatic Web Analytics installation. Do not inject a second manual beacon.
+
+## Optional aggregate action counts
+
+`wrangler.jsonc` keeps production and preview D1 databases separate. Apply `migrations/0001_action_counts.sql` before enabling the endpoint. The production zone has an endpoint-only `/_events` edge rule limiting requests to 10 per 10 seconds per IP/Cloudflare location, with a 10-second block. Verify that protection before enabling writes, and set `ACTION_ANALYTICS_ENABLED=false` to disable them. It mitigates bursts, not distributed abuse or synthetic counts. Previews require the explicit preview flag and a non-main Pages branch. Local development is disabled by default.
+
+The database stores daily totals by four allowlisted action types and budget group, not individual event records, names, URLs, searches, IPs or user identifiers. These are consented action counts, not unique visitors or verified humans. Cloudflare still processes transport metadata. Do not enable request-body logging. Purge old aggregates with `DELETE FROM action_counts WHERE day < date('now', '-90 days')`; maintenance is scheduled weekly outside GitHub and must be monitored. This is not a guarantee of exact 90-day deletion if maintenance cannot run.
+
+For IndexNow release assembly, use `--indexnow-key-file /private/key` and, when available, `--previous-manifest /private/previous-deployment/discovery-manifest.json`. Retain the newly deployed manifest outside a fresh build for the next release. The first rollout uses a clearly scoped live baseline and submits only new paths independently verified to have returned 404 before deployment, not the entire legacy inventory.
 
 No per-box JSON download files are created. Box pages show citations and optional repository source links instead.
