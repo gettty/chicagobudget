@@ -4,12 +4,10 @@ import { handleActionEvent } from '../public/_worker.js';
 
 const url = 'https://chicagobudget.com/_events';
 const rows = [];
-const env = { ACTION_COUNTS: {
-  prepare(sql) { return { bind(...values) { return { sql, values }; } }; },
-  async batch(statements) {
-    assert.match(statements[0].sql, /DELETE FROM action_counts/);
-    assert.match(statements[1].sql, /ON CONFLICT\(day, action, gov\)/);
-    rows.push(statements[1].values);
+const env = { ACTION_ANALYTICS_ENABLED: 'true', ACTION_COUNTS: {
+  prepare(sql) {
+    assert.match(sql, /ON CONFLICT\(day, action, gov\)/);
+    return { bind(...values) { return { async run() { rows.push(values); } }; } };
   },
 } };
 const request = (body, headers = {}, destination = url) => new Request(destination, {
@@ -32,10 +30,12 @@ test('endpoint accepts only bounded enum payload and stores daily aggregate dime
   assert.equal(rows.length, 1);
 });
 test('endpoint rejects cross-site, query, DNT and unconfigured storage', async () => {
+  assert.equal((await handleActionEvent(request({ action: 'budget_open', gov: 'none' }), { ACTION_COUNTS: env.ACTION_COUNTS })).status, 503);
+  assert.equal((await handleActionEvent(request({ action: 'budget_open', gov: 'none' }), { ...env, ACTION_ANALYTICS_ENABLED: 'false' })).status, 503);
   assert.equal((await handleActionEvent(request({ action: 'budget_open', gov: 'none' }, { Origin: 'https://elsewhere.test' }), env)).status, 403);
   assert.equal((await handleActionEvent(request({ action: 'budget_open', gov: 'none' }, {}, url + '?search=private'), env)).status, 403);
   assert.equal((await handleActionEvent(request({ action: 'budget_open', gov: 'none' }, { 'Sec-GPC': '1' }), env)).status, 204);
-  assert.equal((await handleActionEvent(request({ action: 'budget_open', gov: 'none' }), {})).status, 503);
+  assert.equal((await handleActionEvent(request({ action: 'budget_open', gov: 'none' }), { ACTION_ANALYTICS_ENABLED: 'true' })).status, 503);
   assert.equal((await handleActionEvent(new Request(url), env)).status, 405);
   const preview = 'https://abc.chicagobudget.pages.dev/_events';
   const previewRequest = () => request({ action: 'budget_open', gov: 'none' }, { Origin: 'https://abc.chicagobudget.pages.dev' }, preview);

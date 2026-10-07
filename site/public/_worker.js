@@ -9,6 +9,8 @@ const eventReply = status => new Response(null, {status, headers: {'Cache-Contro
 // are stored. The dashboard must not retain request logs for this route.
 export async function handleActionEvent(request, env) {
   if (request.method !== 'POST') return eventReply(405);
+  // Enable only after edge rate limiting and isolated D1 bindings are verified.
+  if (env.ACTION_ANALYTICS_ENABLED !== 'true') return eventReply(503);
   const url = new URL(request.url);
   const production = url.hostname === 'chicagobudget.com';
   const preview = env.ACTION_ANALYTICS_PREVIEW === 'true' && env.CF_PAGES_BRANCH && env.CF_PAGES_BRANCH !== 'main' &&
@@ -41,13 +43,9 @@ export async function handleActionEvent(request, env) {
     Object.keys(payload).sort().join(',') !== 'action,gov' ||
     !actionTypes.has(payload.action) || !actionGovernments.has(payload.gov)) return eventReply(400);
   const day = new Date().toISOString().slice(0, 10);
-  const cutoff = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
   try {
-    await env.ACTION_COUNTS.batch([
-      env.ACTION_COUNTS.prepare('DELETE FROM action_counts WHERE day < ?').bind(cutoff),
-      env.ACTION_COUNTS.prepare('INSERT INTO action_counts (day, action, gov, count) VALUES (?, ?, ?, 1) ON CONFLICT(day, action, gov) DO UPDATE SET count = count + 1')
-        .bind(day, payload.action, payload.gov),
-    ]);
+    await env.ACTION_COUNTS.prepare('INSERT INTO action_counts (day, action, gov, count) VALUES (?, ?, ?, 1) ON CONFLICT(day, action, gov) DO UPDATE SET count = count + 1')
+      .bind(day, payload.action, payload.gov).run();
   } catch { return eventReply(503); }
   return eventReply(204);
 }
