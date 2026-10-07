@@ -98,7 +98,9 @@ class DiscoveryTests(unittest.TestCase):
             old = {r["path"]: r for r in discovery.discover(dist)}
             self.assertEqual(old["/"]["data_version"], "visual-a")
             self.assertEqual(old["/city/"]["data_version"], "site-a")
-            self.assertEqual(old["/datasets/2026/city/"]["data_version"], discovery.data_versions(dist)["snapshot"])
+            self.assertEqual(old["/datasets/2026/city/"]["data_version"], discovery.data_versions(dist)["snapshot_export"])
+            self.assertEqual(old["/datasets/2026/city/"]["data_source"], "snapshot_export")
+            self.assertEqual(old["/datasets/2026/city/"]["publication_revision"], discovery.policy()["snapshot_publication_revision"])
             versions(dist, site="site-b", visual="visual-b")
             unchanged = discovery.discover(dist)
             self.assertEqual(discovery.compare({"routes": list(old.values())}, unchanged)["changed"], [])

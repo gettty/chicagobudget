@@ -43,18 +43,18 @@ def data_versions(dist):
     current = dist / "data/manifest.json"
     visual = dist / "visual-data/core.json"
     return {
-        "site": json.loads(current.read_text(encoding="utf-8"))["commit"] if current.exists() else None,
-        "visual": json.loads(visual.read_text(encoding="utf-8")).get("meta", {}).get("commit") if visual.exists() else None,
-        "snapshot": json.loads(DATA_FILE.read_text(encoding="utf-8"))["commit"],
+        "site_export": json.loads(current.read_text(encoding="utf-8"))["commit"] if current.exists() else None,
+        "visual_export": json.loads(visual.read_text(encoding="utf-8")).get("meta", {}).get("commit") if visual.exists() else None,
+        "snapshot_export": json.loads(DATA_FILE.read_text(encoding="utf-8"))["commit"],
     }
 
 
 def version_for(route, versions):
     if route.startswith("/datasets/2026/"):
-        return "snapshot", versions["snapshot"]
+        return "snapshot_export", versions["snapshot_export"]
     if route in ("/", "/methods"):
-        return "visual", versions["visual"]
-    return "site", versions["site"]
+        return "visual_export", versions["visual_export"]
+    return "site_export", versions["site_export"]
 
 
 def canonical_path(path):
@@ -179,6 +179,8 @@ def discover(dist, config=None):
         entry = {"url": url, "path": route, "section": section(route), "title": page.title.strip(),
                  "indexable": True, "renderable": True, "data_source": source, "data_version": version,
                  "content_digest": digest, "version": digest}
+        if source == "snapshot_export":
+            entry["publication_revision"] = config["snapshot_publication_revision"]
         if route in config["lastmod"]:
             entry["lastmod"] = config["lastmod"][route]["date"]
             entry["lastmod_source"] = config["lastmod"][route]["source"]

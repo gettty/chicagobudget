@@ -1,14 +1,19 @@
 import {box, children, exact, href, manifest, sourceFor, type Box} from './data';
 import {readFileSync} from 'node:fs';
 import {join} from 'node:path';
+import lifecycle from './route_lifecycle.json';
 
 export const siteUrl='https://chicagobudget.com';
-export const snapshot='https://github.com/gettty/chicagobudget/tree/main/data/public/2026';
-export const rawSnapshot='https://raw.githubusercontent.com/gettty/chicagobudget/main/data/public/2026';
+// This commit contains the complete published snapshot, including its catalog,
+// tree files and site manifest. The manifest's earlier commit identifies the
+// export input, not the Git revision at which these files were published.
+export const snapshotPublicationRevision=lifecycle.snapshot_publication_revision;
+export const snapshot=`https://github.com/gettty/chicagobudget/tree/${snapshotPublicationRevision}/data/public/2026`;
+export const rawSnapshot=`https://raw.githubusercontent.com/gettty/chicagobudget/${snapshotPublicationRevision}/data/public/2026`;
 export const exportDate=String(manifest.run_at).slice(0,10);
 const publishedManifest=JSON.parse(readFileSync(join(process.cwd(),'../data/public/2026/site/manifest.json'),'utf8')) as {commit:string;run_at:string;totals:Record<string,number>;gross_city_cents:number};
 export const snapshotDate=publishedManifest.run_at.slice(0,10);
-export const snapshotVersion=publishedManifest.commit;
+export const snapshotExportRevision=publishedManifest.commit;
 const publishedCatalog=JSON.parse(readFileSync(join(process.cwd(),'../data/public/2026/catalog.json'),'utf8')) as {files:{path:string;sha256:string}[]};
 export const treeManifestChecksum=publishedCatalog.files.find(file=>file.path==='tree/manifest.json')?.sha256;
 if(!treeManifestChecksum)throw new Error('Published catalog is missing the tree manifest checksum');
@@ -34,7 +39,7 @@ export const guides:Guide[]=[
 ];
 export const datasetEntries=[{slug:'city',name:'City of Chicago 2026 adopted net budget',root:'city',period:'2026 calendar-year adopted appropriation',temporal:'2026-01-01/2026-12-31',coverage:'Chicago, Illinois',qualification:'Net City appropriation excludes the cross-fund counted-twice view; gross is shown separately.'},{slug:'cps',name:'Chicago Public Schools FY2026 approved budget',root:'cps',period:'FY2026, July 2025 through June 2026',temporal:'2025-07-01/2026-06-30',coverage:'Chicago Public Schools, Illinois',qualification:'School boxes do not contain all centrally budgeted services.'},{slug:'parks',name:'Chicago Park District 2026 operating appropriations',root:'parks',period:'2026 operating budget',temporal:'2026',coverage:'Chicago Park District, Illinois',qualification:'All-funds operating total; net appropriation removes internal service earnings. Not a multi-year capital plan.'}] as const;
 export function distribution(path:string,format:string){return {'@type':'DataDownload',encodingFormat:format,contentUrl:`${rawSnapshot}/${path}`,name:path};}
-export function datasetSchema(entry:typeof datasetEntries[number]){const node=required(entry.root),source=citations([node]);return {'@context':'https://schema.org','@type':'Dataset',name:entry.name,description:`${entry.period}. ${entry.qualification} Amounts are integer cents. Derived budget tree, not an official consolidated City budget.`,url:`${siteUrl}/datasets/2026/${entry.slug}/`,identifier:`${snapshotVersion}:${entry.root}`,version:snapshotVersion,dateModified:snapshotDate,temporalCoverage:entry.temporal,spatialCoverage:{'@type':'Place',name:entry.coverage},creator:{'@type':'Organization',name:'Chicago Budget',url:siteUrl},publisher:{'@type':'Organization',name:'Chicago Budget',url:siteUrl},isBasedOn:source.map(s=>s.url),distribution:[distribution(`tree/${entry.slug}/_root.json`,'application/json'),distribution('tree/manifest.json','application/json'),distribution('tree/lookup.json','application/json'),distribution('catalog.json','application/json')]};}
+export function datasetSchema(entry:typeof datasetEntries[number]){const node=required(entry.root),source=citations([node]);return {'@context':'https://schema.org','@type':'Dataset',name:entry.name,description:`${entry.period}. ${entry.qualification} Amounts are integer cents. Derived budget tree, not an official consolidated City budget.`,url:`${siteUrl}/datasets/2026/${entry.slug}/`,identifier:`${snapshotPublicationRevision}:${entry.root}`,version:snapshotPublicationRevision,dateModified:snapshotDate,temporalCoverage:entry.temporal,spatialCoverage:{'@type':'Place',name:entry.coverage},creator:{'@type':'Organization',name:'Chicago Budget',url:siteUrl},publisher:{'@type':'Organization',name:'Chicago Budget',url:siteUrl},isBasedOn:source.map(s=>s.url),distribution:[distribution(`tree/${entry.slug}/_root.json`,'application/json'),distribution('tree/manifest.json','application/json'),distribution('tree/lookup.json','application/json'),distribution('catalog.json','application/json')]};}
 export function tableRows(ids:string[]){return ids.map(required).map(node=>({node,amount:dollars(node),url:href(node)}));}
 export function guideSources(ids:string[]){return citations(ids.map(required));}
 export function childrenRows(id:string){return children(id).slice(0,12).map(node=>({node,amount:dollars(node),url:href(node)}));}
