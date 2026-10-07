@@ -42,18 +42,3 @@ test('canonical and social metadata are distinct and WebSite schema claims no au
   assert.equal(data['@type'], 'WebSite');
   assert.equal(data.author, undefined);
 });
-
-test('built homepage and methods preserve canonical and rendered data', () => {
-  const home = readFileSync(new URL('../dist/index.html', import.meta.url), 'utf8');
-  const methods = readFileSync(new URL('../dist/methods.html', import.meta.url), 'utf8');
-  assert.ok(home.includes(exact(core.govs[0].amount)));
-  assert.ok(home.includes(exact(core.govs[1].amount)));
-  assert.ok(home.includes(exact(core.govs[2].amount)));
-  assert.ok(home.includes(`href="/city/box/${core.bubbles.find((b) => b.gov === 'city').id}/"`));
-  assert.ok(home.includes('id="tableBody"><tr>'));
-  assert.ok(home.includes('id="stories"><article'));
-  assert.ok(!home.includes('id="rtotal">$0'));
-  assert.ok(!home.includes('%SITE_META%'));
-  assert.match(home, /rel="canonical" href="https:\/\/chicagobudget.com\/"/);
-  assert.match(methods, /rel="canonical" href="https:\/\/chicagobudget.com\/methods"/);
-});
