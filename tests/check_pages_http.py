@@ -8,6 +8,8 @@ import html
 import json
 import re
 import time
+import xml.etree.ElementTree as ET
+from html.parser import HTMLParser
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, build_opener, HTTPRedirectHandler
@@ -42,8 +44,36 @@ def require_html(base, path, *needles):
     return body
 
 
+class Links(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.canonicals = []
+        self.hrefs = []
+
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        if attrs.get('href'):
+            self.hrefs.append(attrs['href'])
+        if tag == 'link' and 'canonical' in attrs.get('rel', '').lower().split():
+            self.canonicals.append(attrs.get('href'))
+
+
 def canonical(body, path):
-    assert f'href="{ORIGIN}{path}"' in body, ('canonical', path)
+    links = Links()
+    links.feed(body)
+    assert links.canonicals == [f'{ORIGIN}{path}'], (path, links.canonicals)
+    assert not any('/undefined/' in href or '/null/' in href for href in links.hrefs), path
+
+
+def money(cents):
+    whole, fraction = divmod(abs(cents), 100)
+    return f'{"-" if cents < 0 else ""}${whole:,}.{fraction:02d}'
+
+
+def require_xml(base, path):
+    status, _, body = fetch(base, path)
+    assert status == 200 and body.lstrip().startswith('<?xml'), (path, status)
+    return body
 
 
 def samples(dist):
@@ -96,12 +126,25 @@ def check(base, dist):
     assert static.is_file(), static
     static_body = require_html(base, '/city/box/city.public-safety/', 'public-safety')
     assert static_body == static.read_text(), 'Static box HTML was replaced by fallback'
+    source_index = json.loads((dist / 'data/sources.json').read_text())
     for gov, node in samples(dist):
         path = f'/{gov}/box/{node["id"]}/'
-        body = require_html(base, path, html.escape(node['name'], quote=False), 'Sources', 'Open interactive view')
+        body = require_html(base, path, '<h2>Sources</h2>', 'Open interactive view')
+        assert node['name'] in html.unescape(body), (path, node['name'])
         canonical(body, path)
-        assert re.search(r'\$[\d,.]+|Exact', body), path
+        assert f'<strong>{money(node["amount_cents"])}</strong>' in body, (path, node['amount_cents'])
         assert 'independent project' in body, path
+        indices = node['source'] if isinstance(node['source'], list) else [node['source']]
+        citations = [source_index[index] for index in indices if isinstance(index, int) and source_index[index]]
+        assert citations, (path, indices)
+        for source in citations:
+            label = source.get('name') or source.get('doc') or source.get('dataset') or 'Public source'
+            assert label in html.unescape(body), (path, label)
+            if source.get('url', '').startswith(('http://', 'https://')):
+                assert source['url'] in html.unescape(body), (path, source['url'])
+            if source.get('page'):
+                page_label = ','.join(map(str, source['page'])) if isinstance(source['page'], list) else str(source['page'])
+                assert 'page ' + page_label in html.unescape(body), (path, source['page'])
         status, _, head = fetch(base, path, 'HEAD')
         assert status == 200 and not head, (path, status, head)
     memo = '/city/box/city-twice.services-between-funds/'
@@ -117,7 +160,16 @@ def check(base, dist):
         status, _, body = fetch(base, path)
         assert status == 200 and json.loads(body) == json.loads((dist / path.lstrip('/')).read_text()), path
     assert (dist / 'data/sources.json').read_bytes() != (dist / 'visual-data/sources.json').read_bytes(), 'Source indexes collided'
-    print('Pages HTTP: homepage, discovery, redirects, static and dynamic boxes, 404, HEAD, data isolation OK')
+    sitemap = ET.fromstring(require_xml(base, '/sitemap-index.xml'))
+    segments = [node.text for node in sitemap.findall('.//{*}loc')]
+    assert f'{ORIGIN}/sitemap-city.xml' in segments, segments
+    city = ET.fromstring(require_xml(base, '/sitemap-city.xml'))
+    urls = [node.text for node in city.findall('.//{*}loc')]
+    sample = next((url for url in urls if url.startswith(f'{ORIGIN}/city/box/')), None)
+    assert sample, 'City sitemap has no box URL'
+    sitemap_path = sample.removeprefix(ORIGIN)
+    canonical(require_html(base, sitemap_path), sitemap_path)
+    print('Pages HTTP: homepage, discovery, redirects, static and dynamic boxes, 404, HEAD, data isolation and sitemap OK')
 
 
 if __name__ == '__main__':

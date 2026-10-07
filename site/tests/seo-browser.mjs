@@ -20,6 +20,10 @@ try {
           assert.ok(await page.locator('main h1').count(), `${path}: missing heading`);
           assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${path}: horizontal overflow at ${viewport.width}px`);
         };
+        const checkCurrent = async label => {
+          assert.ok(await page.locator('main h1').count(), `${label}: missing heading`);
+          assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${label}: horizontal overflow at ${viewport.width}px`);
+        };
         await visit('/');
         const home = await page.locator('main').innerText();
         assert.match(home, /Chicago/i);
@@ -27,18 +31,30 @@ try {
         for (const path of ['/city/', '/cps/', '/parks/', '/datasets/', '/guides/']) {
           assert.ok(await page.locator(`a[href="${path}"]`).count(), `homepage missing ${path}`);
         }
+        if (javaScriptEnabled) {
+          const explorer = page.locator('#atlas input[type="search"]');
+          await explorer.fill('Chicago Police Department');
+          const result = page.locator('#atlasResults [role="option"]').first();
+          await result.waitFor({ timeout: 20000 });
+          assert.match(await result.innerText(), /Police/i);
+          await result.click();
+          assert.ok(await page.locator('#atlas .rail').innerText(), 'explorer result did not open');
+          await checkCurrent('homepage explorer result');
+        }
         await visit('/datasets/');
-        const dataset = page.locator('main a[href^="/datasets/2026/"]').first();
-        assert.ok(await dataset.count(), 'dataset index links');
-        await dataset.click();
-        assert.match(page.url(), /\/datasets\/2026\//);
-        assert.ok((await page.locator('main').innerText()).length > 250);
+        const datasets = await page.locator('main a[href^="/datasets/2026/"]').evaluateAll(links => [...new Set(links.map(link => link.getAttribute('href')))]);
+        assert.equal(datasets.length, 3, 'dataset index links');
+        for (const path of datasets) {
+          await visit(path);
+          assert.ok((await page.locator('main').innerText()).length > 250, path);
+        }
         await visit('/guides/');
-        const guide = page.locator('main a[href^="/guides/"]').first();
-        assert.ok(await guide.count(), 'guide index links');
-        await guide.click();
-        assert.match(page.url(), /\/guides\/[^/]+\//);
-        assert.ok((await page.locator('main').innerText()).length > 250);
+        const guides = await page.locator('main a[href^="/guides/"]').evaluateAll(links => [...new Set(links.map(link => link.getAttribute('href')))]);
+        assert.ok(guides.length >= 10, 'guide index links');
+        for (const path of guides) {
+          await visit(path);
+          assert.ok((await page.locator('main').innerText()).length > 250, path);
+        }
         if (javaScriptEnabled) {
           await visit('/find');
           await page.locator('#government').selectOption('city');
