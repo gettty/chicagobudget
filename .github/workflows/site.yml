@@ -63,8 +63,16 @@ jobs:
           python tests/check_site_dist.py site/dist
           python tests/check_combined_site.py site/dist
           node site/checks/discovery.mjs
-      - name: Install browser for discovery checks
-        run: npx playwright install --with-deps chromium
+      - name: Select browser for discovery checks
+        timeout-minutes: 5
+        run: |
+          CHROME="$(command -v google-chrome || command -v chromium || true)"
+          if [ -n "$CHROME" ]; then
+            "$CHROME" --version
+            echo "CHROMIUM_PATH=$CHROME" >> "$GITHUB_ENV"
+          else
+            npx playwright install --with-deps chromium
+          fi
       - name: Exercise assembled Pages routes and browser discovery
         run: |
           npx wrangler pages dev dist --ip 127.0.0.1 --port 4182 > "$RUNNER_TEMP/pages.log" 2>&1 &
