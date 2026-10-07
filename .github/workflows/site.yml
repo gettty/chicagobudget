@@ -1,16 +1,18 @@
 name: Site checks
 on:
   pull_request:
-    paths: ['site/**', 'lakefront/**', 'build/**', 'data/splits/**', 'data/public/**', 'scripts/**', 'tests/check_site_dist.py', 'tests/check_combined_site.py', 'tests/check_pages_http.py', 'tests/test_discovery.py', '.github/workflows/site.yml']
+    paths: ['site/**', 'lakefront/**', 'build/**', 'data/splits/**', 'data/public/**', 'scripts/**', 'tests/check_site_dist.py', 'tests/check_combined_site.py', 'tests/check_pages_http.py', 'tests/test_*.py', '.github/workflows/site.yml']
   push:
     branches: [main]
-    paths: ['site/**', 'lakefront/**', 'build/**', 'data/splits/**', 'data/public/**', 'scripts/**', 'tests/check_site_dist.py', 'tests/check_combined_site.py', 'tests/check_pages_http.py', 'tests/test_discovery.py', '.github/workflows/site.yml']
+    paths: ['site/**', 'lakefront/**', 'build/**', 'data/splits/**', 'data/public/**', 'scripts/**', 'tests/check_site_dist.py', 'tests/check_combined_site.py', 'tests/check_pages_http.py', 'tests/test_*.py', '.github/workflows/site.yml']
 permissions:
   contents: read
 jobs:
   site:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      PUBLIC_ACTION_ANALYTICS_ENDPOINT: /_events
     defaults:
       run:
         working-directory: site
@@ -50,6 +52,8 @@ jobs:
         working-directory: .
         run: |
           python -m unittest discover -s tests -p 'test_discovery.py'
+          python -m unittest discover -s tests -p 'test_indexnow.py'
+          python -m unittest discover -s tests -p 'test_assembly.py'
           python scripts/assemble_production_site.py
           python tests/check_site_dist.py site/dist
           python tests/check_combined_site.py site/dist

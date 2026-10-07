@@ -102,8 +102,6 @@ def load_delta(changes_file, max_age_hours=MAX_AGE_HOURS):
             elif current.get(path) != route:
                 raise ValueError("Delta does not match current manifest")
             selected.append((kind, route["url"]))
-    if len(selected) > 10000:
-        raise ValueError("More than 10000 changed URLs: split into reviewed deployments")
     return selected
 
 
@@ -164,8 +162,18 @@ def verify_previous(previous_file, changes_file):
         raise ValueError("Delta does not match retained prior deployment manifest")
 
 
-def run(changes_file, submit=False, key_file=None, previous_manifest=None, fetcher=fetch):
+def run(changes_file, submit=False, key_file=None, previous_manifest=None, fetcher=fetch, include_paths=()):
     selected = load_delta(changes_file)
+    if include_paths:
+        paths = set(include_paths)
+        if len(paths) != len(include_paths) or len(paths) > 20 or any(not isinstance(p, str) or not p.startswith("/") or valid_url(ORIGIN + p) != p for p in paths):
+            raise ValueError("Choose at most 20 unique canonical --include-path routes")
+        added = {url.removeprefix(ORIGIN): url for kind, url in selected if kind == "added"}
+        if not paths.issubset(added):
+            raise ValueError("--include-path must select only added routes in this delta")
+        selected = [(kind, url) for kind, url in selected if kind == "added" and url.removeprefix(ORIGIN) in paths]
+    if len(selected) > 10000:
+        raise ValueError("More than 10000 changed URLs: split into reviewed subsets")
     print(json.dumps({"mode": "submit" if submit else "dry-run", "counts": {kind: sum(k == kind for k, _ in selected) for kind in ("added", "changed", "removed")}, "urls": [url for _, url in selected]}))
     if not submit or not selected:
         return
@@ -186,9 +194,10 @@ if __name__ == "__main__":
     parser.add_argument("--submit", action="store_true", help="Explicitly authorize live validation and IndexNow POST")
     parser.add_argument("--key-file", type=Path, help="Private local file holding exact key, with no trailing newline")
     parser.add_argument("--previous-manifest", type=Path, help="Required for --submit: retained prior deployed discovery-manifest.json")
+    parser.add_argument("--include-path", action="append", default=[], help="Select up to 20 explicitly reviewed added canonical paths for a bounded initial submission")
     args = parser.parse_args()
     try:
-        run(args.changes, args.submit, args.key_file, args.previous_manifest)
+        run(args.changes, args.submit, args.key_file, args.previous_manifest, include_paths=args.include_path)
     except (ValueError, UnicodeError, json.JSONDecodeError) as error:
         print(f"IndexNow aborted: {error}", file=sys.stderr)
         sys.exit(1)

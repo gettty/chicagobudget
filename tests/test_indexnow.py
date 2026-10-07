@@ -86,7 +86,18 @@ class IndexNowTests(unittest.TestCase):
         entries = [{**self.route, "url": indexnow.ORIGIN + f"/city/{i}/", "path": f"/city/{i}/"} for i in range(10001)]
         self.save(added=entries, routes=entries)
         with self.assertRaisesRegex(ValueError, "10000"):
-            indexnow.load_delta(self.changes)
+            indexnow.run(self.changes, fetcher=lambda *args: self.fail("network called"))
+
+    def test_bounded_added_subset(self):
+        prior = json.loads(self.previous.read_text())["routes"][0]
+        self.save(removed=[prior])
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            indexnow.run(self.changes, include_paths=["/city/"])
+        self.assertEqual(json.loads(output.getvalue())["urls"], [self.route["url"]])
+        with self.assertRaisesRegex(ValueError, "only added"):
+            indexnow.run(self.changes, include_paths=["/"])
+        with self.assertRaisesRegex(ValueError, "at most 20"):
+            indexnow.run(self.changes, include_paths=["/city/"] * 2)
 
     def test_submission_requires_matching_nonempty_previous(self):
         with self.assertRaisesRegex(ValueError, "previous-manifest"):
