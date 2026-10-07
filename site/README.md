@@ -2,11 +2,19 @@
 
 Static Astro site for the exported budget data in `public/data/`. Build the data with `python3 build/export_site.py` from the repository root, then in this directory run `npm ci`, `npm run check`, and `npm run build`. Astro's current checker needs Node 20.19+ or 22.12+; the project includes a local Node 22 dev dependency for machines with older system Node.
 
-The build writes `dist/` only. It does not deploy. Important box pages are pre-rendered; deep links also use the static `/box-shell/` and Cloudflare Pages `_redirects` rewrites. The rewrite destination must include its trailing slash: `/box-shell` triggers a Pages canonical redirect that loses the original box ID. Keep those rewrites if changing hosts. Test navigation against the deployed Pages preview, since Astro dev does not exercise `_redirects`.
+The build writes `dist/` only. It does not deploy. Important box pages are pre-rendered. A scoped Cloudflare Pages advanced-mode worker serves those static files first and renders other valid budget IDs as complete HTML from the exported data. Unknown IDs return 404 and temporary data failures return 503. Do not restore blanket `/box-shell/` rewrites, which override real static pages. Test the assembled bundle with `npx wrangler pages dev dist`, since Astro dev does not exercise the Pages worker.
 
 Production combines this site's existing budget pages with the Lakefront homepage. After building `site/`, run `cd ../lakefront && npm ci && npm run data && VITE_DATA_BASE=/visual-data/ SITE_URL=https://chicagobudget.com npm run build`, then from the repository root run `python3 scripts/assemble_production_site.py` and `python3 tests/check_combined_site.py`. Deploy the resulting `site/dist/`. The assembler retains all old routes and `/data/` files, puts the new explorer's data under `/visual-data/`, and replaces only the homepage and shared landing assets. Do not deploy either unassembled `dist/` by itself.
 
 After deployment, run `PREVIEW_URL=https://your-preview.pages.dev node tests/navigation-browser.mjs` with Playwright installed (and `CHROMIUM_PATH` if needed). This follows budget category links, validates destination content, and exercises drill-down and return paths rather than only checking hrefs or generated files.
+
+## Search and dataset discovery
+
+Assembly runs `scripts/build_discovery.py` after both sites are combined. It generates segmented sitemaps and a sitemap index from rendered, self-canonical HTML, plus `discovery-manifest.json` and a small `llms.txt` navigation aid. It does not invent modification dates or change AI-training permissions. Canonical URLs use `https://chicagobudget.com`, with `/methods` as the slash-free exception. Dataset catalog and guide pages link to the versioned public snapshot and explain fiscal-period and double-counting limitations.
+
+Validation includes `python3 -m unittest discover -s tests -p 'test_discovery.py'` from the repository root and both combined-output checkers. With Pages dev running on port 4182, run `python3 tests/check_pages_http.py http://127.0.0.1:4182 --dist site/dist` from the root, then `PREVIEW_URL=http://127.0.0.1:4182 node tests/seo-browser.mjs` from `site/` after installing Playwright Chromium. These checks exercise actual worker responses and JavaScript-enabled and disabled discovery.
+
+Search Console and Bing ownership verification, sitemap submission, production alias redirects, and any crawl-policy or analytics account configuration require separately authorized account access. No credentials or automatic URL-submission jobs are included. `llms.txt` and structured metadata do not guarantee rankings or AI citations.
 
 ## Production deployment
 

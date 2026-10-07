@@ -9,6 +9,8 @@ sources.json (the two files have different schemas).
 import argparse
 import hashlib
 import shutil
+import subprocess
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -29,6 +31,9 @@ def assemble(site: Path, lakefront: Path) -> None:
         raise ValueError("Lakefront must be built with VITE_DATA_BASE=/visual-data/")
     if not any(b"visual-data/" in asset.read_bytes() for asset in (lakefront / "assets").glob("*.js")):
         raise ValueError("Lakefront JavaScript must fetch from /visual-data/")
+    for target in ("assets", "visual-data"):
+        if (site / target).exists():
+            raise FileExistsError(f"Rebuild the Astro output before assembling: {site / target}")
     legacy_sources = digest(site / "data/sources.json")
     for name in ("index.html", "methods.html", "404.html", "favicon.svg", "og.jpg", "robots.txt"):
         source = lakefront / name
@@ -43,6 +48,7 @@ def assemble(site: Path, lakefront: Path) -> None:
         shutil.copytree(lakefront / dirname, destination)
     if digest(site / "data/sources.json") != legacy_sources:
         raise ValueError("Legacy source index was unexpectedly changed")
+    subprocess.run([sys.executable, str(ROOT / "scripts/build_discovery.py"), str(site)], check=True)
     print(f"Assembled Lakefront homepage, {len(list((site / 'visual-data').rglob('*.json')))} visual data files, and existing Astro routes in {site}")
 
 
