@@ -24,7 +24,7 @@
       ]
     },
     "preview": {
-      "vars": { "ACTION_ANALYTICS_PREVIEW": "true", "ACTION_ANALYTICS_ENABLED": "true" },
+      "vars": { "ACTION_ANALYTICS_PREVIEW": "true", "ACTION_ANALYTICS_ENABLED": "false" },
       "d1_databases": [
         {
           "binding": "ACTION_COUNTS",

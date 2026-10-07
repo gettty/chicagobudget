@@ -28,7 +28,7 @@ opener = build_opener(NoRedirect)
 
 def fetch(base, path, method='GET'):
     try:
-        response = opener.open(Request(base + path, method=method), timeout=10)
+        response = opener.open(Request(base + path, method=method, headers={'User-Agent': 'ChicagoBudgetReleaseVerification/1.0'}), timeout=10)
     except HTTPError as error:
         response = error
     with response:
