@@ -1,14 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { classifyLink, createActionTracker, installActionTracking } from '../src/lib/actionAnalytics.mjs';
+import { classifyLink, createActionTracker, installActionTracking, recordBudgetOpen } from '../src/lib/actionAnalytics.mjs';
 
 const base = 'https://chicagobudget.com/?q=private-person';
 test('only allowlisted, coarse action classes are emitted', () => {
   assert.equal(classifyLink('/city/box/city.foo?name=private', base), 'budget_open');
   assert.equal(classifyLink('/cps/', base), 'budget_open');
   assert.equal(classifyLink('https://www.chicago.gov/doc.pdf?person=private', base), 'official_source_follow');
-  assert.equal(classifyLink('https://github.com/example/data/blob/main/budget.csv?token=secret', base), 'dataset_download');
+  assert.equal(classifyLink('https://github.com/gettty/chicagobudget/tree/main/data/public/2026/sources/snapshot.xls?token=secret', base), 'dataset_download');
+  assert.equal(classifyLink('https://raw.githubusercontent.com/gettty/chicagobudget/main/data/public/2026/tree/lookup.json.gz', base), 'dataset_download');
+  assert.equal(classifyLink(`https://raw.githubusercontent.com/gettty/chicagobudget/${'a'.repeat(40)}/data/public/2026/sources/table.xlsx`, base), 'dataset_download');
+  assert.equal(classifyLink('https://github.com/gettty/chicagobudget/issues/2026.csv', base), null);
+  assert.equal(classifyLink('https://github.com/another/repo/tree/main/data/public/2026/private.xls', base), null);
   assert.equal(classifyLink('https://evil.example/data.csv', base), null);
   assert.equal(classifyLink('javascript:alert(1)', base), null);
 });
@@ -93,4 +97,22 @@ test('consent UI is opt-in, revocable, and respects browser privacy signals', ()
   win.navigator.globalPrivacyControl = true;
   assert.equal(track('official_source_follow'), false);
   assert.equal(listeners.click instanceof Function, true);
+});
+test('interactive atlas opens use government only and share the anchor dedupe state', () => {
+  const bodies = [];
+  const win = {
+    location: { href: base }, navigator: { doNotTrack: '0' },
+    localStorage: { getItem: () => 'yes' },
+    fetch: (_path, options) => { bodies.push(options.body); return Promise.resolve(); },
+    document: { readyState: 'loading', addEventListener() {} },
+  };
+  installActionTracking(win, '/_events');
+  assert.equal(recordBudgetOpen('city.public-safety.police', win), true);
+  assert.equal(recordBudgetOpen('city.public-safety.fire', win), false);
+  assert.equal(recordBudgetOpen('city-twice.services', win), false);
+  assert.equal(recordBudgetOpen('cps.schools', win), true);
+  assert.equal(recordBudgetOpen('p:education', win), false);
+  assert.deepEqual(bodies.map(JSON.parse), [
+    { action: 'budget_open', gov: 'city' }, { action: 'budget_open', gov: 'cps' },
+  ]);
 });

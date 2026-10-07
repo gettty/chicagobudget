@@ -3,7 +3,7 @@
 // (including IP, user agent and Referer), and avoid retaining individual event logs.
 const ACTIONS = new Set(['budget_open', 'official_source_follow', 'dataset_download', 'permalink_share']);
 const OFFICIAL_HOSTS = new Set(['chicago.gov', 'www.chicago.gov', 'cps.edu', 'www.cps.edu', 'chicagoparkdistrict.com', 'www.chicagoparkdistrict.com', 'data.cityofchicago.org']);
-const DATA_HOSTS = new Set(['github.com', 'raw.githubusercontent.com']);
+const DATA_FILE = /\.(?:csv|json|zip|parquet|gz|xls|xlsx)$/i;
 const INSTALL_KEY = Symbol.for('chicagobudget.actionAnalytics');
 
 export function classifyLink(href, base) {
@@ -12,7 +12,9 @@ export function classifyLink(href, base) {
   if (!['http:', 'https:'].includes(url.protocol)) return null;
   const local = url.origin === new URL(base).origin;
   if (local && /^\/(?:city|cps|parks)(?:\/|$)/.test(url.pathname)) return 'budget_open';
-  if ((local || DATA_HOSTS.has(url.hostname.toLowerCase())) && /\.(?:csv|json|zip|parquet)$/i.test(url.pathname)) return 'dataset_download';
+  const snapshot = (url.hostname === 'github.com' && /^\/gettty\/chicagobudget\/(?:tree|blob)\/(?:main|[a-f0-9]{40})\/data\/public\/2026\//.test(url.pathname)) ||
+    (url.hostname === 'raw.githubusercontent.com' && /^\/gettty\/chicagobudget\/(?:main|[a-f0-9]{40})\/data\/public\/2026\//.test(url.pathname));
+  if (DATA_FILE.test(url.pathname) && (snapshot || (local && /^\/(?:datasets|resources|data)\//.test(url.pathname)))) return 'dataset_download';
   if (OFFICIAL_HOSTS.has(url.hostname.toLowerCase())) return 'official_source_follow';
   return null;
 }
@@ -97,4 +99,12 @@ export function installActionTracking(win, endpoint) {
   }
   win[INSTALL_KEY] = track;
   return track;
+}
+
+// Called by interactive atlas transitions that do not use anchors. Never send
+// a box ID; the tracker retains only the government enum and dedupe window.
+export function recordBudgetOpen(id, win = window) {
+  if (typeof id !== 'string') return false;
+  const gov = id.startsWith('city-twice') ? 'city' : /^(city|cps|parks)(?:\.|$)/.exec(id)?.[1];
+  return gov ? (win[INSTALL_KEY]?.('budget_open', gov) ?? false) : false;
 }

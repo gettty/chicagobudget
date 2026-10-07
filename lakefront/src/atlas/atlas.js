@@ -10,6 +10,7 @@ import * as D from '../lib/data.js';
 import { money, words, exact, pct, perHead, count } from '../lib/format.js';
 import { COL, TINT, INK, el, showTip, moveTip, hideTip, reduceMotion, writeHash } from '../lib/ui.js';
 import { renderRail } from './rail.js';
+import { recordBudgetOpen } from '../lib/actionAnalytics.js';
 
 const PEOPLE_KINDS = new Set(['job_title', 'pay_rate', 'position', 'job_title_group']);
 const VIEW_LABEL = { boxes: 'Boxes', swarm: 'Per student', parks: 'Per park', people: 'People', list: 'List' };
@@ -331,6 +332,7 @@ export function initAtlas(core) {
 
   /* ---------------------------------------------------------------- selection and navigation */
   function select_(id, tile) {
+    if (id !== sel) recordBudgetOpen(id);
     sel = id;
     tm.querySelectorAll('.tile.selected').forEach((t) => t.classList.remove('selected'));
     const t = tile || tm.querySelector(`.layer:last-child .tile[data-id="${CSS.escape(id)}"]`);
@@ -342,6 +344,7 @@ export function initAtlas(core) {
   function setStatus(text) { status.textContent = text || ''; }
 
   async function go(id, anim = 'jump', origin = null) {
+    const previousFocus = sel || cur;
     const t = ++token;
     hideTip();
     let target = id;
@@ -376,6 +379,7 @@ export function initAtlas(core) {
     else if (view === 'list') renderList();
     else renderBoxes(anim, anim === 'out' ? outRect : origin);
     const focusId = sel || cur;
+    if (anim !== 'none' && focusId !== previousFocus && focusId !== 'all' && !focusId.startsWith('p:')) recordBudgetOpen(focusId);
     renderRail(railEl, { id: focusId, nodeOf, parentOf, govOf, linkGov, core, PURP, GOV, onOpen: (x) => go(x, 'jump') });
     if (sel) requestAnimationFrame(() => { const tl = tm.querySelector(`.layer:last-child .tile[data-id="${CSS.escape(sel)}"]`); if (tl) tl.classList.add('selected'); });
     writeHash({ box: focusId === 'all' ? null : focusId, by: mode === 'purpose' ? 'purpose' : null, view: view !== 'boxes' ? view : null });
