@@ -1,0 +1,15 @@
+---
+import Base from '../../layouts/Base.astro';
+import ShareChart from '../../components/ShareChart.astro';
+import {shareCharts} from '../../lib/sharePack';
+import {scopeNote,exportDate} from '../../lib/discovery';
+---
+<Base title="Resources and shareable 2026 budget charts" description="A source-linked, downloadable evidence pack for Chicago City, CPS and Park District 2026 budget categories, with qualifications and exact tables.">
+  <nav aria-label="Breadcrumb"><a href="/">Home</a> / Resources</nav>
+  <section class="hero"><p class="eyebrow">Share and verify</p><h1>2026 Chicago budget resources</h1><p class="lede">Chicago Budget is an independent project organizing published budgets for the City of Chicago, Chicago Public Schools and the Chicago Park District into explorable, source-linked boxes. It shows what was budgeted and where published records do not support a finer breakdown. It is not affiliated with these governments and does not report final spending.</p></section>
+  <h2>Reuse this description</h2><blockquote>Chicago Budget is an independent, source-linked guide to the City of Chicago, Chicago Public Schools and Chicago Park District 2026 budgets. Browse budget categories, inspect official citations and download the versioned data. Budgeted amounts are not actual spending, and the three governments have different reporting periods.</blockquote>
+  <p>The text above can be copied with attribution to <a href="https://chicagobudget.com/resources/">Chicago Budget resources</a>. These figures are derived from the site's published tree export dated <time datetime={exportDate}>{exportDate}</time>. {scopeNote}</p>
+  <h2>Three charts and exact tables</h2><p>Each graphic is an SVG generated from the same box records as its accessible table and downloadable CSV. Bars compare categories <em>within</em> one government, not across governments. Follow the stable claim URL for each chart and the linked box for row-level evidence.</p>
+  {shareCharts.map(chart=><ShareChart chart={chart}/>)}
+  <h2>Reuse and limitations</h2><p>CSV files contain selected positive top-level categories, amounts in integer cents, and box URLs. They are not the complete dataset. For full hierarchy, version, schema, file checksums and source terms, use the <a href="/datasets/">dataset catalog</a>. The project's original work has separate terms from upstream government publications; consult <a href="https://github.com/gettty/chicagobudget/blob/main/LICENSES.md">licenses and attribution</a> before redistribution.</p><p>Appropriations are authorizations, not year-end payments. Some estimates, proxies, unassigned grants and unresolved categories have limited detail. Do not add these three totals into an official combined budget or interpret a school allocation as all services received by that school. Read the <a href="/methods">methods</a>, <a href="/gaps">gaps</a> and <a href="/sources">source index</a>. No search visibility, citation or ranking is promised.</p>
+</Base>

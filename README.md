@@ -1,6 +1,6 @@
 # Chicago Budget Explorer
 
-Explore where money goes in the 2026 budgets of the City of Chicago, Chicago Public Schools (CPS), and the Chicago Park District. The project builds a database of nested budget boxes and a website for opening them. Every parent box equals its children to the cent. Planned budgets are not actual spending.
+Explore where money goes in the 2026 budgets of the City of Chicago, Chicago Public Schools (CPS), and the Chicago Park District. The project builds a database of nested budget boxes and a website for opening them. Every parent box equals its children to the cent. Planned budgets are not actual spending. Browse the [live explorer](https://chicagobudget.com/), [2026 datasets](https://chicagobudget.com/datasets/), and [source-linked charts and share resources](https://chicagobudget.com/resources/).
 
 | Budget | Official total | Source |
 |---|---:|---|

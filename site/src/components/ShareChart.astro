@@ -1,0 +1,22 @@
+---
+import {exact, href} from '../lib/data';
+import type {shareCharts} from '../lib/sharePack';
+const {chart}=Astro.props as {chart:typeof shareCharts[number]};
+const max=Math.max(...chart.rows.map(row=>row.amount_cents));
+---
+<section id={`${chart.slug}-categories`} class="chart-section" aria-labelledby={`${chart.slug}-title`}>
+  <h2 id={`${chart.slug}-title`}>{chart.title}</h2>
+  <p><strong>Scope:</strong> {chart.period}. {chart.qualification} These are direct children of the <a href={chart.rootUrl}>published root</a>, not payments made. The chart excludes zero or negative rows; consult the full tree for reconciliation.</p>
+  <figure>
+    <figcaption>Top-level positive categories, 2026 budget export of <time datetime={chart.exportDate}>{chart.exportDate}</time>. Bar lengths show relative dollar amounts within this government only. Exact values follow in the table.</figcaption>
+    <svg viewBox={`0 0 600 ${chart.rows.length*38+12}`} role="img" aria-label={`${chart.title}. Relative amounts for ${chart.rows.length} categories; exact values and source links are in the table below.`} preserveAspectRatio="xMinYMin meet">
+      {chart.rows.map((row,i)=><g><title>{row.name}: {exact(row.amount_cents)}</title><rect x="0" y={i*38+4} width={Math.max(2,Math.round(row.amount_cents/max*560))} height="25" rx="3" fill="#175f75"/><text x="8" y={i*38+22} fill="#fff" font-size="13">{i+1}</text></g>)}
+    </svg>
+  </figure>
+  <div class="table-scroll"><table><caption>{chart.title}. Exact amounts in dollars, derived from integer cents; chart numbers correspond to rows.</caption><thead><tr><th scope="col">#</th><th scope="col">Category</th><th scope="col">Amount</th><th scope="col">Basis</th></tr></thead><tbody>{chart.rows.map((row,i)=><tr><td>{i+1}</td><th scope="row"><a href={href(row)}>{row.name}</a></th><td>{exact(row.amount_cents)}</td><td>{row.basis || 'See box'}</td></tr>)}</tbody></table></div>
+  <p><a href={chart.csvUrl} download>Download category CSV</a> (integer cents) · <a href={chart.datasetUrl}>Dataset, schema and checksums</a> · Claim URL: <a href={chart.claimUrl}>{chart.claimUrl}</a></p>
+  <p><strong>Official primary source{chart.sources.length===1?'':'s'}:</strong> {chart.sources.map((source,i)=><span>{i>0?', ':''}<a href={source.url}>{source.label}</a></span>)}. Individual rows link to their own evidence and qualifications.</p>
+</section>
+<style>
+.chart-section{padding:1.5rem 0;border-top:1px solid #a9b8bb;scroll-margin-top:2rem}figure{margin:1rem 0}figcaption{margin-bottom:.75rem}svg{display:block;width:min(100%,600px);height:auto;background:#edf2f1}table{width:100%}th,td{text-align:left;padding:.45rem;border-bottom:1px solid #ccc}td:nth-child(3){font-variant-numeric:tabular-nums;white-space:nowrap}
+</style>
