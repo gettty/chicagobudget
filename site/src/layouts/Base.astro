@@ -1,9 +1,17 @@
 ---
 import '../styles/global.css';
-const {title='Chicago budget explorer', description='Open the boxes inside Chicago public budgets.'}=Astro.props;
+import {canonicalUrl, isInternalRoute, SITE_ORIGIN} from '../lib/seo';
+const {title='Chicago budget explorer', description='Explore public budgets for the City of Chicago, Chicago Public Schools, and the Chicago Park District.', noindex=false, breadcrumbs=[]}=Astro.props as {title?:string;description?:string;noindex?:boolean;breadcrumbs?:{name:string;url:string}[]};
 const current=Astro.url.pathname;
+const canonical=canonicalUrl(current);
+const pageTitle=title.includes('Chicago Budget') || title.includes('Chicago budget explorer') ? title : `${title} | Chicago Budget`;
+const robotsNoindex=noindex || isInternalRoute(current);
+const structuredData=robotsNoindex ? [] : [
+  ...(current==='/' ? [{ '@context':'https://schema.org', '@type':'WebSite', name:'Chicago Budget', url:SITE_ORIGIN+'/', description }] : []),
+  ...(breadcrumbs.length>1 ? [{ '@context':'https://schema.org', '@type':'BreadcrumbList', itemListElement: breadcrumbs.map((item, i)=>({'@type':'ListItem',position:i+1,name:item.name,item:canonicalUrl(item.url)})) }] : []),
+];
 const analyticsToken=import.meta.env.PUBLIC_CF_ANALYTICS_TOKEN;
-const secondaryNav=[['/city','City'],['/cps','Schools'],['/parks','Parks'],['/about','About']];
+const secondaryNav=[['/city','City'],['/cps','Schools'],['/parks','Parks'],['/guides','Guides'],['/datasets','Datasets'],['/about','About']];
 const active=(url:string)=>current===url || (url!=='/find' && url!=='/about' && current.startsWith(`${url}/`));
 ---
 <!doctype html>
@@ -12,8 +20,16 @@ const active=(url:string)=>current===url || (url!=='/find' && url!=='/about' && 
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="description" content={description}/>
+    {robotsNoindex&&<meta name="robots" content="noindex,follow"/>}
+    {!robotsNoindex&&<link rel="canonical" href={canonical}/>}
+    <meta property="og:type" content="website"/>
+    <meta property="og:title" content={pageTitle}/>
+    <meta property="og:description" content={description}/>
+    <meta property="og:url" content={canonical}/>
+    <meta name="twitter:card" content="summary"/>
+    {structuredData.map(data=><script type="application/ld+json" set:html={JSON.stringify(data).replace(/</g,'\\u003c')}/>)}
     <meta name="theme-color" content="#f4f2ec"/>
-    <title>{title} | Chicago budget explorer</title>
+    <title>{pageTitle}</title>
     {analyticsToken&&<script is:inline defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon={JSON.stringify({token:analyticsToken})}></script>}
   </head>
   <body>
@@ -42,7 +58,7 @@ const active=(url:string)=>current===url || (url!=='/find' && url!=='/about' && 
     <footer class="site-footer">
       <div class="wrap">
         <div class="footer-heading"><span>Chicago Budget<span class="footer-star" aria-hidden="true">✶</span></span><p>An independent look at our public money.</p></div>
-        <nav aria-label="Footer navigation"><a href="/disclosures">Disclosures</a><a href="/sources">Sources</a><a href="/glossary">Glossary</a><a href="/gaps">What we could not find</a><a href="/contribute">Contribute</a></nav>
+        <nav aria-label="Footer navigation"><a href="/guides/">Guides</a><a href="/datasets/">Datasets</a><a href="/methods">Methods</a><a href="/disclosures">Disclosures</a><a href="/sources">Sources</a><a href="/glossary">Glossary</a><a href="/gaps">What we could not find</a><a href="/contribute">Contribute</a></nav>
       </div>
     </footer>
   </body>
