@@ -40,7 +40,39 @@ try {
   assert.ok(focus.slice(0, 10).every(item => item.outline !== 'none'), 'early keyboard stops have visible focus rings');
   results.push({ keyboardFocus: focus });
   await page.close();
-  console.log(JSON.stringify({ origin, chrome: browser.version(), results }, null, 2));
+  // Consent controls are optional, but when configured must fit narrow screens,
+  // expose status, and remain operable without a pointer. The browser context is
+  // disposable, so the localStorage choice does not persist for a real user.
+  const consentContext = await browser.newContext({ viewport: { width: 320, height: 640 }, isMobile: true, hasTouch: true });
+  const consentPage = await consentContext.newPage();
+  await consentPage.goto(origin, { waitUntil: 'networkidle' });
+  const consent = consentPage.locator('[data-action-consent]');
+  if (await consent.count()) {
+    const allow = consent.getByRole('button', { name: 'Allow action counts' });
+    const deny = consent.getByRole('button', { name: 'Do not count my actions' });
+    for (const control of [allow, deny]) {
+      const box = await control.boundingBox();
+      assert.ok(box && box.x >= 0 && box.x + box.width <= 320, 'consent button fits 320px viewport');
+    }
+    assert.equal(await consentPage.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, 'consent does not cause horizontal overflow');
+    assert.match(await consent.innerText(), /Action counts off/);
+    if (await allow.isEnabled()) {
+      await allow.focus();
+      await consentPage.keyboard.press('Enter');
+      assert.match(await consent.innerText(), /Action counts on/);
+      await deny.focus();
+      await consentPage.keyboard.press('Enter');
+      assert.match(await consent.innerText(), /Action counts off/);
+    }
+    results.push({ consent: { present: true, viewport: 320, keyboardToggle: await allow.isEnabled() } });
+  } else results.push({ consent: { present: false, reason: 'Analytics endpoint not configured in served build' } });
+  await consentContext.close();
+  // Artifacts omit preview hostname, query strings, and any browser-provided URLs.
+  const redacted = results.map(result => ({ ...result,
+    requests: result.requests?.map(({ url, ...request }) => ({ path: new URL(url).pathname, ...request })),
+    resources: result.resources?.map(({ name, ...resource }) => ({ path: new URL(name).pathname, ...resource })),
+  }));
+  console.log(JSON.stringify({ origin: '<preview-origin>', chrome: browser.version(), results: redacted }, null, 2));
 } finally {
   await browser.close();
 }
