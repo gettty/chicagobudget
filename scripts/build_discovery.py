@@ -38,9 +38,23 @@ def policy():
     return config
 
 
-def data_version():
-    metadata = json.loads(DATA_FILE.read_text(encoding="utf-8"))
-    return metadata["commit"]
+def data_versions(dist):
+    """Identify actual inputs, not a single snapshot label for unlike pages."""
+    current = dist / "data/manifest.json"
+    visual = dist / "visual-data/core.json"
+    return {
+        "site": json.loads(current.read_text(encoding="utf-8"))["commit"] if current.exists() else None,
+        "visual": json.loads(visual.read_text(encoding="utf-8")).get("meta", {}).get("commit") if visual.exists() else None,
+        "snapshot": json.loads(DATA_FILE.read_text(encoding="utf-8"))["commit"],
+    }
+
+
+def version_for(route, versions):
+    if route.startswith("/datasets/2026/"):
+        return "snapshot", versions["snapshot"]
+    if route in ("/", "/methods"):
+        return "visual", versions["visual"]
+    return "site", versions["site"]
 
 
 def canonical_path(path):
@@ -66,11 +80,17 @@ class Page(HTMLParser):
         self.in_body = False
         self.headings = []
         self.in_heading = False
+        self.links = []
+        self.descriptions = []
 
     def handle_starttag(self, tag, attrs):
         attrs = dict(attrs)
         if tag == "link" and attrs.get("rel", "").lower() == "canonical":
             self.canonicals.append(attrs.get("href", ""))
+        if self.in_body and tag == "a" and attrs.get("href"):
+            self.links.append(attrs["href"])
+        if tag == "meta" and attrs.get("name", "").lower() == "description":
+            self.descriptions.append(attrs.get("content", ""))
         if tag == "meta" and attrs.get("name", "").lower() == "robots":
             self.robots.append(attrs.get("content", "").lower())
         if tag == "title":
@@ -117,9 +137,17 @@ def section(path):
     return first if first in ("city", "cps", "parks", "datasets") else "core"
 
 
+def meaningful_digest(page):
+    """Ignore generated asset names, scripts, whitespace and build timestamps."""
+    normalized = lambda value: re.sub(r"\s+", " ", value).strip()
+    content = [normalized(page.title), *page.canonicals, *map(normalized, page.descriptions),
+               normalized(" ".join(page.visible)), *page.links]
+    return hashlib.sha256(json.dumps(content, ensure_ascii=False).encode("utf-8")).hexdigest()
+
+
 def discover(dist, config=None):
     config = config or policy()
-    version = data_version()
+    versions = data_versions(dist)
     result = []
     seen = set()
     for file in sorted(dist.rglob("*.html")):
@@ -146,10 +174,11 @@ def discover(dist, config=None):
         if url in seen:
             continue
         seen.add(url)
-        digest = hashlib.sha256(content).hexdigest()
+        digest = meaningful_digest(page)
+        source, version = version_for(route, versions)
         entry = {"url": url, "path": route, "section": section(route), "title": page.title.strip(),
-                 "indexable": True, "renderable": True, "data_version": version,
-                 "content_digest": digest, "version": hashlib.sha256(f"{version}:{digest}".encode()).hexdigest()}
+                 "indexable": True, "renderable": True, "data_source": source, "data_version": version,
+                 "content_digest": digest, "version": digest}
         if route in config["lastmod"]:
             entry["lastmod"] = config["lastmod"][route]["date"]
             entry["lastmod_source"] = config["lastmod"][route]["source"]
@@ -196,7 +225,7 @@ def build(dist, previous_manifest=None):
     for filename in sitemap_files:
         ET.SubElement(ET.SubElement(index, f"{{{NS}}}sitemap"), f"{{{NS}}}loc").text = ORIGIN + "/" + filename
     (dist / "sitemap-index.xml").write_bytes(xml_bytes(index))
-    manifest = {"schema_version": 2, "canonical_origin": ORIGIN, "data_version": data_version(),
+    manifest = {"schema_version": 2, "canonical_origin": ORIGIN, "data_versions": data_versions(dist),
                 "lifecycle": config, "quality_rule": "self-canonical indexable rendered HTML with visible content and a title, excluding internal shells", "routes": routes}
     (dist / "discovery-manifest.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n")
     if previous_manifest is not None:

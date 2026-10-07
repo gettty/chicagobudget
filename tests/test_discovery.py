@@ -20,6 +20,14 @@ def page(directory, route, *, canonical=None, robots="", body=None):
     path.write_text(f'<html><head><title>{route}</title><link rel="canonical" href="{canonical}"><meta name="robots" content="{robots}"></head><body><h1>{route}</h1><main>{body}</main></body></html>')
 
 
+def versions(directory, site="site-a", visual="visual-a"):
+    for name, payload in (("data/manifest.json", {"commit": site}),
+                          ("visual-data/core.json", {"meta": {"commit": visual}})):
+        file = directory / name
+        file.parent.mkdir(parents=True, exist_ok=True)
+        file.write_text(json.dumps(payload))
+
+
 class DiscoveryTests(unittest.TestCase):
     def test_canonical_policy(self):
         self.assertEqual(discovery.canonical_path("/methods/?q=x#top"), "/methods")
@@ -29,6 +37,7 @@ class DiscoveryTests(unittest.TestCase):
     def test_filter_and_deterministic_outputs(self):
         with tempfile.TemporaryDirectory() as tmp:
             dist = Path(tmp)
+            versions(dist)
             page(dist, "/")
             page(dist, "/city/")
             page(dist, "/city/box/useful/")
@@ -56,6 +65,7 @@ class DiscoveryTests(unittest.TestCase):
     def test_deployment_comparison_and_provenance(self):
         with tempfile.TemporaryDirectory() as tmp:
             dist = Path(tmp)
+            versions(dist)
             page(dist, "/city/")
             baseline = discovery.build(dist)
             previous = dist / "prior.json"
@@ -79,9 +89,43 @@ class DiscoveryTests(unittest.TestCase):
         self.assertFalse(config["next_year"]["redirect_from_2026"])
         self.assertEqual(config["next_year"]["status"], "unpublished")
 
+    def test_source_versions_and_semantic_changes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            dist = Path(tmp)
+            versions(dist)
+            for route in ("/", "/city/", "/datasets/2026/city/"):
+                page(dist, route, body="Chicago budget $100 from public source.")
+            old = {r["path"]: r for r in discovery.discover(dist)}
+            self.assertEqual(old["/"]["data_version"], "visual-a")
+            self.assertEqual(old["/city/"]["data_version"], "site-a")
+            self.assertEqual(old["/datasets/2026/city/"]["data_version"], discovery.data_versions(dist)["snapshot"])
+            versions(dist, site="site-b", visual="visual-b")
+            unchanged = discovery.discover(dist)
+            self.assertEqual(discovery.compare({"routes": list(old.values())}, unchanged)["changed"], [])
+            page(dist, "/city/", body="Chicago budget $200 from public source.")
+            updated = discovery.discover(dist)
+            self.assertEqual([r["path"] for r in discovery.compare({"routes": list(old.values())}, updated)["changed"]], ["/city/"])
+            page(dist, "/city/", body='Chicago budget $100 from <a href="https://agency.example/new-source">public source</a>.')
+            self.assertNotEqual(old["/city/"]["version"], {r["path"]: r for r in discovery.discover(dist)}["/city/"]["version"])
+            page(dist, "/city/", canonical=discovery.ORIGIN + "/city/alternate/")
+            self.assertNotIn("/city/", [r["path"] for r in discovery.discover(dist)])
+
+    def test_script_and_asset_hash_do_not_change_version(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            dist = Path(tmp)
+            versions(dist)
+            page(dist, "/city/")
+            file = dist / "city/index.html"
+            first = discovery.discover(dist)[0]["version"]
+            file.write_text(file.read_text().replace("</head>", '<script src="/_astro/asset.abc.js"></script></head>'))
+            self.assertEqual(first, discovery.discover(dist)[0]["version"])
+            file.write_text(file.read_text().replace("asset.abc.js", "asset.def.js"))
+            self.assertEqual(first, discovery.discover(dist)[0]["version"])
+
     def test_asset_cap(self):
         with tempfile.TemporaryDirectory() as tmp:
             dist = Path(tmp)
+            versions(dist)
             page(dist, "/")
             previous = discovery.MAX_ASSETS
             try:
