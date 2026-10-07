@@ -16,6 +16,11 @@ try {
         page.on('pageerror', error => errors.push(error.message));
         const visit = async path => {
           const response = await page.goto(`${base}${path}`, { waitUntil: 'domcontentloaded' });
+          // DOMContentLoaded can precede the external stylesheet in a JS-off
+          // Chromium context. The load event waits for that stylesheet; then
+          // verify it actually parsed, so failed CSS cannot conceal overflow.
+          await page.waitForLoadState('load');
+          assert.ok(await page.locator('link[rel="stylesheet"]').evaluateAll(links => links.every(link => !!link.sheet)), `${path}: stylesheet failed to load`);
           assert.equal(response.status(), 200, path);
           assert.ok(await page.locator('main h1').count(), `${path}: missing heading`);
           assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${path}: horizontal overflow at ${viewport.width}px`);
