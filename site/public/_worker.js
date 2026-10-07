@@ -10,9 +10,14 @@ const link = node => {
   return node.id === 'city-twice' ? '/city/counted-twice/' : node.id === root ? `/${root}/` : `/${root === 'city-twice' ? 'city' : root}/box/${encodeURIComponent(node.id)}/`;
 };
 const safeUrl = value => typeof value === 'string' && /^https?:\/\//i.test(value) ? value : null;
-const htmlResponse = (html, status, head) => new Response(head ? null : html, {status, headers: {'Content-Type': 'text/html; charset=utf-8', 'X-Content-Type-Options': 'nosniff'}});
-const notFound = head => htmlResponse('<!doctype html><html lang="en"><meta charset="utf-8"><title>Budget box not found | Chicago Budget</title><h1>Budget box not found</h1><p>This box is not in the published budget data.</p><a href="/find">Search budgets</a></html>', 404, head);
-const unavailable = head => htmlResponse('<!doctype html><html lang="en"><meta charset="utf-8"><title>Budget data temporarily unavailable</title><h1>Budget data temporarily unavailable</h1><p>Please retry this page shortly.</p></html>', 503, head);
+const htmlResponse = (html, status, request) => {
+  const headers = {'Content-Type': 'text/html; charset=utf-8', 'X-Content-Type-Options': 'nosniff'};
+  // Pages' automatic preview noindex may not carry over to new Response bodies.
+  if (new URL(request.url).hostname !== 'chicagobudget.com') headers['X-Robots-Tag'] = 'noindex';
+  return new Response(request.method === 'HEAD' ? null : html, {status, headers});
+};
+const notFound = request => htmlResponse('<!doctype html><html lang="en"><meta charset="utf-8"><title>Budget box not found | Chicago Budget</title><h1>Budget box not found</h1><p>This box is not in the published budget data.</p><a href="/find">Search budgets</a></html>', 404, request);
+const unavailable = request => htmlResponse('<!doctype html><html lang="en"><meta charset="utf-8"><title>Budget data temporarily unavailable</title><h1>Budget data temporarily unavailable</h1><p>Please retry this page shortly.</p></html>', 503, request);
 
 async function assetJson(env, path) {
   const response = await env.ASSETS.fetch(new Request(`${origin}/data/${path}`, {headers: {Accept: 'application/json'}}));
@@ -46,21 +51,21 @@ export default {
     if (!match) return staticResponse;
     const gov = match[1];
     let id;
-    try { id = decodeURIComponent(match[2]); } catch { return notFound(request.method === 'HEAD'); }
+    try { id = decodeURIComponent(match[2]); } catch { return notFound(request); }
     // Validate decoded IDs before using them in an asset path or canonical URL.
-    if (id.length > 1024 || !/^[a-z0-9][a-z0-9.-]*$/.test(id) || id.includes('..') || !(id.startsWith(`${gov}.`) || (gov === 'city' && id.startsWith('city-twice.')))) return notFound(request.method === 'HEAD');
+    if (id.length > 1024 || !/^[a-z0-9][a-z0-9.-]*$/.test(id) || id.includes('..') || !(id.startsWith(`${gov}.`) || (gov === 'city' && id.startsWith('city-twice.')))) return notFound(request);
     try {
     const manifest = await assetJson(env, 'manifest.json');
     const keys = Object.keys(manifest.chunks).filter(key => id === key || id.startsWith(`${key}.`));
     const key = keys.sort((a, b) => b.length - a.length)[0];
-    if (!key) return notFound(request.method === 'HEAD');
+    if (!key) return notFound(request);
     const chunkPath = manifest.chunks[key];
     if (!/^chunks\/[a-f0-9]+\.json$/.test(chunkPath)) throw new Error('Invalid chunk manifest');
     const chunk = await assetJson(env, chunkPath);
     const spine = await assetJson(env, 'spine.json');
     const expectedRoot = id.startsWith('city-twice.') ? 'city-twice' : gov;
     const node = chunk.nodes.find(n => n.id === id && n.root === expectedRoot) || spine.find(n => n.id === id && (n.root || expectedRoot) === expectedRoot);
-    if (!node) return notFound(request.method === 'HEAD');
+    if (!node) return notFound(request);
     const children = [...(chunk.nodes || []), ...(chunk.stubs || []).map(n => ({...n, parent_id: n.parent_id || n.id.slice(0, n.id.lastIndexOf('.'))})), ...spine].filter(n => n.parent_id === id);
     const uniqueChildren = [...new Map(children.map(n => [n.id, n])).values()].sort((a, b) => Math.abs(b.amount_cents) - Math.abs(a.amount_cents));
     const byId = new Map([...spine, ...chunk.nodes].map(n => [n.id, n]));
@@ -82,10 +87,10 @@ export default {
     const sourceData = await assetJson(env, 'sources.json');
     const indices = Array.isArray(node.source) ? node.source : [node.source];
     const sources = indices.filter(Number.isInteger).map(i => sourceData[i]).filter(Boolean);
-    return htmlResponse(render(node, uniqueChildren.map(n => ({...n, root: n.root || expectedRoot})), crumbs, sources, gov), 200, request.method === 'HEAD');
+    return htmlResponse(render(node, uniqueChildren.map(n => ({...n, root: n.root || expectedRoot})), crumbs, sources, gov), 200, request);
     } catch (error) {
       console.error('Budget data unavailable', error);
-      return unavailable(request.method === 'HEAD');
+      return unavailable(request);
     }
   }
 };

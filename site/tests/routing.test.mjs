@@ -118,3 +118,19 @@ test('missing export assets return retryable 503, not a false 404', async () => 
   assert.equal(response.status, 503);
   assert.match(await response.text(), /retry this page/);
 });
+
+test('dynamic HTML is noindex on preview/local hosts and indexable on production', async () => {
+  const valid = '/parks/box/parks.maintaining-the-parks.facilities-management-8460.corporate-fund.611005.1114-0/';
+  const unknown = '/city/box/city.unknown-budget-node/';
+  const unavailableAssets = {ASSETS: {fetch(req) {
+    if (new URL(req.url).pathname === '/data/manifest.json') return new Response('missing', {status: 404});
+    return assets.ASSETS.fetch(req);
+  }}};
+  for (const host of ['chicagobudget.com', 'preview.chicagobudget.pages.dev', 'localhost']) {
+    for (const [path, env, expected] of [[valid, assets, 200], [unknown, assets, 404], [valid, unavailableAssets, 503]]) {
+      const response = await worker.fetch(new Request(`https://${host}${path}`), env);
+      assert.equal(response.status, expected);
+      assert.equal(response.headers.get('X-Robots-Tag'), host === 'chicagobudget.com' ? null : 'noindex', `${host}: ${path} (${expected})`);
+    }
+  }
+});
