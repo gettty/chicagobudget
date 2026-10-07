@@ -1,0 +1,37 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "chicagobudget",
+  "pages_build_output_dir": "./dist",
+  "compatibility_date": "2026-10-04",
+  "d1_databases": [
+    {
+      "binding": "ACTION_COUNTS",
+      "database_name": "chicagobudget-actions-preview",
+      "database_id": "2279d7d9-dbcf-4fc2-8396-fae134a6345a",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "env": {
+    "production": {
+      "d1_databases": [
+        {
+          "binding": "ACTION_COUNTS",
+          "database_name": "chicagobudget-actions",
+          "database_id": "8f4fbb93-efc3-4a14-8fda-8e29a228e8bc",
+          "migrations_dir": "migrations"
+        }
+      ]
+    },
+    "preview": {
+      "vars": { "ACTION_ANALYTICS_PREVIEW": "true" },
+      "d1_databases": [
+        {
+          "binding": "ACTION_COUNTS",
+          "database_name": "chicagobudget-actions-preview",
+          "database_id": "2279d7d9-dbcf-4fc2-8396-fae134a6345a",
+          "migrations_dir": "migrations"
+        }
+      ]
+    }
+  }
+}
