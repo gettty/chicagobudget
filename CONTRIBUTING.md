@@ -8,6 +8,8 @@ Data contributions fix numbers, add detail or improve explanations. Site contrib
 
 Use Python 3.11+, SQLite and Node 22+ for site work. The [2026 public snapshot](data/README.md) contains the pinned raw inputs and roster records; `build/fetch_inputs.sh` checks their hashes and restores them to ignored working paths. A fresh checkout needs no private archive. Never add the entire local `raw/` or `data/people/` directory to a PR. Source records can include names, but website-facing fields must not.
 
+In a shallow clone, the site snapshot-provenance test needs the pinned publication commit object to compare the published files. Before `cd site && npm test`, fetch just that commit: `git fetch --no-tags --depth=1 origin "$(node -p "require('./site/src/lib/route_lifecycle.json').snapshot_publication_revision")"`. Site CI performs this targeted fetch automatically.
+
 For your first change:
 
 ```sh
