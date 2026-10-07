@@ -1,6 +1,56 @@
 // Cloudflare Pages advanced mode. ASSETS is the deployed static site, including
 // the privacy-safe /data export. Never route asset lookups back through this worker.
 const origin = 'https://chicagobudget.com';
+const actionTypes = new Set(['budget_open', 'official_source_follow', 'dataset_download', 'permalink_share']);
+const actionGovernments = new Set(['city', 'cps', 'parks', 'none']);
+const eventReply = status => new Response(null, {status, headers: {'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff'}});
+
+// Counts are actions, not unique visitors. No user identifiers or request metadata
+// are stored. The dashboard must not retain request logs for this route.
+export async function handleActionEvent(request, env) {
+  if (request.method !== 'POST') return eventReply(405);
+  const url = new URL(request.url);
+  const production = url.hostname === 'chicagobudget.com';
+  const preview = env.ACTION_ANALYTICS_PREVIEW === 'true' && env.CF_PAGES_BRANCH && env.CF_PAGES_BRANCH !== 'main' &&
+    /^[a-z0-9-]+\.chicagobudget\.pages\.dev$/.test(url.hostname);
+  if ((!production && !preview) || url.search || url.hash || request.headers.get('Origin') !== url.origin) return eventReply(403);
+  if (request.headers.get('DNT') === '1' || request.headers.get('Sec-GPC') === '1') return eventReply(204);
+  if (!env.ACTION_COUNTS) return eventReply(503);
+  if (!/^application\/json(?:\s*;|$)/i.test(request.headers.get('Content-Type') || '')) return eventReply(415);
+  const length = Number(request.headers.get('Content-Length'));
+  if (Number.isFinite(length) && length > 128) return eventReply(413);
+  const reader = request.body?.getReader();
+  if (!reader) return eventReply(400);
+  let bytes = 0;
+  const chunks = [];
+  while (true) {
+    const {done, value} = await reader.read();
+    if (done) break;
+    bytes += value.byteLength;
+    if (bytes > 128) { await reader.cancel(); return eventReply(413); }
+    chunks.push(value);
+  }
+  let payload;
+  try {
+    const buffer = new Uint8Array(bytes);
+    let offset = 0;
+    for (const chunk of chunks) { buffer.set(chunk, offset); offset += chunk.byteLength; }
+    payload = JSON.parse(new TextDecoder('utf-8', {fatal: true}).decode(buffer));
+  } catch { return eventReply(400); }
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload) ||
+    Object.keys(payload).sort().join(',') !== 'action,gov' ||
+    !actionTypes.has(payload.action) || !actionGovernments.has(payload.gov)) return eventReply(400);
+  const day = new Date().toISOString().slice(0, 10);
+  const cutoff = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
+  try {
+    await env.ACTION_COUNTS.batch([
+      env.ACTION_COUNTS.prepare('DELETE FROM action_counts WHERE day < ?').bind(cutoff),
+      env.ACTION_COUNTS.prepare('INSERT INTO action_counts (day, action, gov, count) VALUES (?, ?, ?, 1) ON CONFLICT(day, action, gov) DO UPDATE SET count = count + 1')
+        .bind(day, payload.action, payload.gov),
+    ]);
+  } catch { return eventReply(503); }
+  return eventReply(204);
+}
 const governments = {city: 'City of Chicago', cps: 'Chicago Public Schools', parks: 'Chicago Park District'};
 const basisLabels = {budget: 'In the budget', tied: 'Adds up exactly', gov_estimate: 'Government estimate', paid_to_date: 'Paid so far', proxy: 'Our estimate', residual: 'Leftover', adjustment: 'Adjustment'};
 const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[char]));
@@ -43,6 +93,7 @@ function render(node, children, crumbs, sources, gov) {
 
 export default {
   async fetch(request, env) {
+    if (new URL(request.url).pathname === '/_events') return handleActionEvent(request, env);
     // Static assets take precedence, including prerendered boxes and /data.
     const staticResponse = await env.ASSETS.fetch(request);
     if (staticResponse.status !== 404 || !['GET', 'HEAD'].includes(request.method)) return staticResponse;

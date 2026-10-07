@@ -10,7 +10,6 @@ const structuredData=robotsNoindex ? [] : [
   ...(current==='/' ? [{ '@context':'https://schema.org', '@type':'WebSite', name:'Chicago Budget', url:SITE_ORIGIN+'/', description }] : []),
   ...(breadcrumbs.length>1 ? [{ '@context':'https://schema.org', '@type':'BreadcrumbList', itemListElement: breadcrumbs.map((item, i)=>({'@type':'ListItem',position:i+1,name:item.name,item:canonicalUrl(item.url)})) }] : []),
 ];
-const analyticsToken=import.meta.env.PUBLIC_CF_ANALYTICS_TOKEN;
 const secondaryNav=[['/city','City'],['/cps','Schools'],['/parks','Parks'],['/guides','Guides'],['/datasets','Datasets'],['/about','About']];
 const active=(url:string)=>current===url || (url!=='/find' && url!=='/about' && current.startsWith(`${url}/`));
 ---
@@ -26,11 +25,16 @@ const active=(url:string)=>current===url || (url!=='/find' && url!=='/about' && 
     <meta property="og:title" content={pageTitle}/>
     <meta property="og:description" content={description}/>
     <meta property="og:url" content={canonical}/>
-    <meta name="twitter:card" content="summary"/>
+    <meta property="og:image" content={`${SITE_ORIGIN}/og.jpg`}/>
+    <meta property="og:image:alt" content="Chicago Budget, an independent guide to three separate public budgets"/>
+    <meta name="twitter:card" content="summary_large_image"/>
+    <meta name="twitter:title" content={pageTitle}/>
+    <meta name="twitter:description" content={description}/>
+    <meta name="twitter:image" content={`${SITE_ORIGIN}/og.jpg`}/>
     {structuredData.map(data=><script type="application/ld+json" set:html={JSON.stringify(data).replace(/</g,'\\u003c')}/>)}
     <meta name="theme-color" content="#f4f2ec"/>
     <title>{pageTitle}</title>
-    {analyticsToken&&<script is:inline defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon={JSON.stringify({token:analyticsToken})}></script>}
+    <script>import { installActionTracking } from '../lib/actionAnalytics.mjs'; installActionTracking(window, import.meta.env.PUBLIC_ACTION_ANALYTICS_ENDPOINT || '');</script>
   </head>
   <body>
     <a class="skip" href="#main">Skip to content</a>
@@ -59,6 +63,7 @@ const active=(url:string)=>current===url || (url!=='/find' && url!=='/about' && 
       <div class="wrap">
         <div class="footer-heading"><span>Chicago Budget<span class="footer-star" aria-hidden="true">✶</span></span><p>An independent look at our public money.</p></div>
         <nav aria-label="Footer navigation"><a href="/guides/">Guides</a><a href="/datasets/">Datasets</a><a href="/methods">Methods</a><a href="/disclosures">Disclosures</a><a href="/sources">Sources</a><a href="/glossary">Glossary</a><a href="/gaps">What we could not find</a><a href="/contribute">Contribute</a></nav>
+        <button type="button" data-permalink-share>Copy page link</button>
       </div>
     </footer>
   </body>

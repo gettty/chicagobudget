@@ -1,1 +1,1 @@
-{"version":1,"include":["/city/box/*","/cps/box/*","/parks/box/*"],"exclude":[]}
+{"version":1,"include":["/city/box/*","/cps/box/*","/parks/box/*","/_events"],"exclude":[]}

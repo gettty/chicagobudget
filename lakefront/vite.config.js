@@ -35,8 +35,13 @@ function budgetFacts() {
         const methods = context.path.includes('methods');
         const page = methods ? '/methods' : '/';
         v.SITE_META = siteMetadata(page, v.SITE_URL) + (methods ? '' : '\n' + websiteSchema());
-        const token = process.env.PUBLIC_CF_ANALYTICS_TOKEN;
-        v.ANALYTICS = token ? `<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='${JSON.stringify({ token }).replace(/&/g, '&amp;').replace(/'/g, '&#39;').replace(/</g, '&lt;')}'></script>` : '';
+        // Cloudflare Web Analytics does not support custom events. Do not embed
+        // another page-view beacon: the site owner may enable one via Pages.
+        // Action collection requires both a same-origin endpoint and visitor consent.
+        const endpoint = process.env.PUBLIC_ACTION_ANALYTICS_ENDPOINT || '';
+        v.ANALYTICS = /^\/[a-z0-9/_-]+$/i.test(endpoint) && !endpoint.startsWith('//')
+          ? `<script type="module">import { installActionTracking } from '/src/lib/actionAnalytics.js'; installActionTracking(window, ${JSON.stringify(endpoint)});</script>`
+          : '';
         if (!methods) {
           const content = homepageContent(JSON.parse(readFileSync(resolve(__dirname, 'public/data/core.json'), 'utf8')), JSON.parse(readFileSync(resolve(__dirname, 'public/data/sources.json'), 'utf8')));
           v.GOVERNMENTS = content.governments;
