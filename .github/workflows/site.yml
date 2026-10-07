@@ -1,16 +1,18 @@
 name: Site checks
 on:
   pull_request:
-    paths: ['site/**', 'lakefront/**', 'build/**', 'data/splits/**', 'data/public/**', 'scripts/assemble_production_site.py', 'tests/check_site_dist.py', 'tests/check_combined_site.py', '.github/workflows/site.yml']
+    paths: ['site/**', 'lakefront/**', 'build/**', 'data/splits/**', 'data/public/**', 'scripts/**', 'tests/check_site_dist.py', 'tests/check_combined_site.py', 'tests/check_pages_http.py', 'tests/test_*.py', '.github/workflows/site.yml']
   push:
     branches: [main]
-    paths: ['site/**', 'lakefront/**', 'build/**', 'data/splits/**', 'data/public/**', 'scripts/assemble_production_site.py', 'tests/check_site_dist.py', 'tests/check_combined_site.py', '.github/workflows/site.yml']
+    paths: ['site/**', 'lakefront/**', 'build/**', 'data/splits/**', 'data/public/**', 'scripts/**', 'tests/check_site_dist.py', 'tests/check_combined_site.py', 'tests/check_pages_http.py', 'tests/test_*.py', '.github/workflows/site.yml']
 permissions:
   contents: read
 jobs:
   site:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      PUBLIC_ACTION_ANALYTICS_ENDPOINT: /_events
     defaults:
       run:
         working-directory: site
@@ -33,9 +35,13 @@ jobs:
           cache-dependency-path: site/package-lock.json
       - run: npm ci
       - run: npm run check
+      - name: Fetch pinned snapshot publication for provenance test
+        run: |
+          revision=$(node -p "require('./src/lib/route_lifecycle.json').snapshot_publication_revision")
+          git -C .. fetch --no-tags --depth=1 origin "$revision"
+          git -C .. cat-file -e "$revision:data/public/2026/catalog.json"
       - run: npm test
       - run: npm run build
-      - run: python ../tests/check_site_dist.py dist
       - run: npm ci
         working-directory: lakefront
       - run: npm run data
@@ -50,6 +56,27 @@ jobs:
       - name: Assemble and check production bundle
         working-directory: .
         run: |
+          python -m unittest discover -s tests -p 'test_discovery.py'
+          python -m unittest discover -s tests -p 'test_indexnow.py'
+          python -m unittest discover -s tests -p 'test_assembly.py'
           python scripts/assemble_production_site.py
           python tests/check_site_dist.py site/dist
           python tests/check_combined_site.py site/dist
+          node site/checks/discovery.mjs
+      - name: Select browser for discovery checks
+        timeout-minutes: 5
+        run: |
+          CHROME="$(command -v google-chrome || command -v chromium || true)"
+          if [ -n "$CHROME" ]; then
+            "$CHROME" --version
+            echo "CHROMIUM_PATH=$CHROME" >> "$GITHUB_ENV"
+          else
+            npx playwright install --with-deps chromium
+          fi
+      - name: Exercise assembled Pages routes and browser discovery
+        run: |
+          npx wrangler pages dev dist --ip 127.0.0.1 --port 4182 > "$RUNNER_TEMP/pages.log" 2>&1 &
+          PAGES_PID=$!
+          trap 'kill "$PAGES_PID" 2>/dev/null || true; cat "$RUNNER_TEMP/pages.log"' EXIT
+          python ../tests/check_pages_http.py http://127.0.0.1:4182 --dist dist
+          PREVIEW_URL=http://127.0.0.1:4182 node tests/seo-browser.mjs

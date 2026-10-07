@@ -1,12 +1,37 @@
 # Chicago Budget Explorer
 
-Explore where money goes in the 2026 budgets of the City of Chicago, Chicago Public Schools (CPS), and the Chicago Park District. The project builds a database of nested budget boxes and a website for opening them. Every parent box equals its children to the cent. Planned budgets are not actual spending.
+Explore where money goes in the 2026 budgets of the City of Chicago, Chicago Public Schools (CPS), and the Chicago Park District. The project builds a database of nested budget boxes and a website for opening them. Every parent box equals its children to the cent. Planned budgets are not actual spending. Browse the [live explorer](https://chicagobudget.com/), [2026 datasets](https://chicagobudget.com/datasets/), and [source-linked charts and share resources](https://chicagobudget.com/resources/).
 
 | Budget | Official total | Source |
 |---|---:|---|
 | City | $16,842,553,003 | Passed 2026 ordinance, net total, p. 544 |
 | CPS | $10,253,327,463.68 | CPS FY2026 budget |
 | Park District | $637,580,350 | 2026 appropriations grand total |
+
+## Discovery operations
+
+After assembling a deployed release with a retained **prior deployed** `discovery-manifest.json`, inspect `site/dist/discovery-changes.json` before IndexNow. The script defaults to a network-free dry run:
+
+```sh
+python3 scripts/submit_indexnow.py site/dist/discovery-changes.json
+# For a reviewed initial batch, select up to 20 added routes rather than a full resubmission:
+python3 scripts/submit_indexnow.py site/dist/discovery-changes.json --include-path /city/ --include-path /datasets/
+```
+
+Only after the new release is live, deploy a root `/<key>.txt` file whose public response body is **exactly** the key (no newline), and retain the prior deployed manifest outside the new bundle. With explicit operator approval, run `INDEXNOW_KEY` from a private environment or use `--key-file` outside Git:
+
+```sh
+INDEXNOW_KEY="$PRIVATE_INDEXNOW_KEY" python3 scripts/submit_indexnow.py site/dist/discovery-changes.json \
+  --previous-manifest /private/prior/discovery-manifest.json --include-path /city/ --submit
+```
+
+Submission verifies the prior-to-current delta, public key file, live self-canonical 200 responses for added/changed URLs and genuine 404/410 responses for removals. It rejects stale artifacts, foreign hosts and batches above 10,000 URLs. No CI job submits automatically. A weekly/manual [public smoke workflow](.github/workflows/discovery-monitor.yml) stores a JSON artifact with status, redirect, canonical, robots and user-agent response baselines. For a local measurement:
+
+```sh
+python3 scripts/collect_deploy_smoke.py --output /tmp/chicagobudget-discovery-smoke.json
+```
+
+Googlebot/Bingbot user-agent requests in that artifact are **simulations**, not verified crawler visits. Keep measurement files and any key material out of the repository.
 
 ## Rebuild and check
 

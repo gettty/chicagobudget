@@ -1,0 +1,34 @@
+name: Public discovery smoke
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 14 * * 1'
+permissions:
+  contents: read
+jobs:
+  public-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Capture public URL, robots and simulated bot responses
+        run: python scripts/collect_deploy_smoke.py --output "$RUNNER_TEMP/discovery-smoke.json"
+      - name: Check public baseline
+        run: |
+          jq -e '
+            .bot_verification == "not_verified_user_agent_simulation_only"
+            and (.observations | length == 15)
+            and (.observations | all(.status == 200 and .final_url == .url and (.truncated | not)))
+            and ([.observations[] | select(.url == "https://chicagobudget.com/" and .agent_profile == "ordinary") | .canonical] == [["https://chicagobudget.com/"]])
+            and ([.observations[] | select(.url == "https://chicagobudget.com/robots.txt" and .agent_profile == "ordinary") | .robots_text | contains("Sitemap: https://chicagobudget.com/sitemap-index.xml")] == [true])
+          ' "$RUNNER_TEMP/discovery-smoke.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: discovery-smoke-${{ github.run_id }}
+          path: ${{ runner.temp }}/discovery-smoke.json
+          retention-days: 30
+          if-no-files-found: warn

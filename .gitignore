@@ -10,6 +10,7 @@ site/node_modules/
 site/dist/
 site/public/data/
 site/.astro/
+site/.wrangler/
 site/coverage/
 site/playwright-report/
 site/test-results/

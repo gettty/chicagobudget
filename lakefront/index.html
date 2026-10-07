@@ -6,14 +6,11 @@
 <title>Where Chicago’s %TOTAL_WORDS% goes · Chicago’s 2026 budget</title>
 <meta name="description" content="Every dollar in the 2026 budgets of the City of Chicago, Chicago Public Schools and the Chicago Park District, on one page. Open any of %BOXES% budget boxes.">
 <meta name="theme-color" content="#ffffff">
-<meta property="og:type" content="website">
-<meta property="og:title" content="Where Chicago’s %TOTAL_WORDS% goes">
-<meta property="og:description" content="Three 2026 budgets, %PROGRAMS% programs, %BOXES% boxes that each add up to the cent. %ONE_IN_PAST% dollars pays for pensions and old loans.">
-<meta property="og:image" content="%SITE_URL%/og.jpg">
 %SITE_META%
-<meta name="twitter:card" content="summary_large_image">
+%ANALYTICS%
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="preload" href="%DATA_BASE%core.json" as="fetch" crossorigin>
+<noscript><style>.tablewrap{display:block!important}</style></noscript>
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
@@ -24,7 +21,7 @@
 <header class="nav">
   <div class="wrap">
     <a class="logo" href="#top" aria-label="Chicago’s 2026 budget home"><svg class="star" aria-hidden="true"><use href="#star"/></svg>Chicago’s 2026 budget</a>
-    <nav aria-label="Sections"><a href="#top">Overview</a><a href="#notable">Notable numbers</a><a href="#explore">Explore</a><a href="#share">Your share</a><a href="/methods">How it works</a></nav>
+    <nav aria-label="Sections"><a href="#top">Overview</a><a href="#notable">Notable numbers</a><a href="#explore">Explore</a><a href="#share">Your share</a><a href="/datasets/">Datasets</a><a href="/guides/">Guides</a><a href="/methods">How it works</a></nav>
     <button class="find" type="button" data-search aria-label="Search all budget boxes"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span>Search <span data-fact="boxes">%BOXES%</span> boxes</span> <kbd>/</kbd></button>
   </div>
 </header>
@@ -50,7 +47,8 @@
   <div class="field" id="field"></div>
   <div class="wrap">
     <div class="legend" id="legend"></div>
-    <div class="tablewrap" id="tableWrap"><table><caption class="sr">The programs in the chart, largest first</caption><thead><tr><th scope="col">Program</th><th scope="col">Government</th><th scope="col">Purpose</th><th scope="col" class="n">2026 budget</th></tr></thead><tbody id="tableBody"></tbody></table></div>
+    <div class="tablewrap" id="tableWrap"><table><caption class="sr">The programs in the chart, largest first</caption><thead><tr><th scope="col">Program</th><th scope="col">Government</th><th scope="col">Purpose</th><th scope="col" class="n">2026 budget</th></tr></thead><tbody id="tableBody">%PROGRAM_ROWS%</tbody></table></div>
+    %GOVERNMENTS%
     <div class="notes-mobile" id="notesMobile"></div>
     <p class="sentence">That is <span class="num" data-fact="perSecond">%PER_SECOND%</span> for every second of the year and <span class="num" data-fact="perResident">%PER_RESIDENT%</span> for every Chicagoan, written down in <span class="num" data-fact="boxes">%BOXES%</span> budget boxes that each add up to the cent.</p>
     <p class="fine">The three budgets belong to separate governments with different budget years, and are added together here only for scale. Budgets are plans, not money already spent. <a href="/methods#three-budgets">How to read them</a>.</p>
@@ -62,7 +60,7 @@
     <p class="kicker"><svg class="star" aria-hidden="true"><use href="#star"/></svg>Notable numbers</p>
     <h2 id="notable-title">Six numbers worth knowing</h2>
     <p class="sub">Each one opens the explorer at the box it comes from, so you can check it yourself.</p>
-    <div class="stories" id="stories"></div>
+    <div class="stories" id="stories">%NOTABLE_CARDS%</div>
   </div>
 </section>
 
@@ -108,14 +106,14 @@
             <button type="button" role="tab" aria-selected="false" data-per="household">Per household</button>
           </div>
         </div>
-        <ul class="ritems" id="ritems"></ul>
-        <div class="rtotal"><b>Total</b><span class="amt" id="rtotal">$0</span></div>
+        <ul class="ritems" id="ritems">%RECEIPT_ROWS%</ul>
+        <div class="rtotal"><b>Total</b><span class="amt" id="rtotal">%PER_RESIDENT%</span></div>
         <small id="rnote"></small>
       </div>
       <div class="share-side">
         <div class="meter-card">
           <p class="ck">Budgeted since you opened this page</p>
-          <p class="live num" id="liveCount" aria-live="off">$0</p>
+          <p class="live num" id="liveCount" aria-live="off">Starts when this page loads</p>
           <p class="fine">At <span data-fact="perSecond">%PER_SECOND%</span> a second, the three budgets spread evenly over the year.</p>
         </div>
         <div class="taxbill">
@@ -133,7 +131,7 @@
 <footer class="site-footer">
   <div class="wrap">
     <div class="footer-heading"><span>Chicago Budget<span class="footer-star" aria-hidden="true">✶</span></span><p>An independent look at our public money.</p></div>
-    <nav aria-label="Footer navigation"><a href="https://chicagobudget.com/disclosures">Disclosures</a><a href="https://chicagobudget.com/sources">Sources</a><a href="https://chicagobudget.com/glossary">Glossary</a><a href="https://chicagobudget.com/gaps">What we could not find</a><a href="https://chicagobudget.com/contribute">Contribute</a><a href="/methods">How it works</a><a class="footer-github" href="https://github.com/gettty/chicagobudget" aria-label="Chicago Budget on GitHub"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M12 .8a11.2 11.2 0 0 0-3.54 21.83c.56.1.77-.24.77-.54v-2.1c-3.13.68-3.79-1.33-3.79-1.33-.51-1.3-1.25-1.64-1.25-1.64-1.02-.7.08-.68.08-.68 1.13.08 1.73 1.16 1.73 1.16 1 .1.81 1.25 3.3.84.1-.73.39-1.25.71-1.54-2.5-.28-5.13-1.25-5.13-5.54 0-1.22.44-2.21 1.16-2.99-.12-.28-.51-1.42.11-2.95 0 0 .95-.3 3.08 1.14A10.7 10.7 0 0 1 12 6.88c.95 0 1.9.13 2.79.37 2.13-1.44 3.07-1.14 3.07-1.14.62 1.53.23 2.67.11 2.95.72.78 1.16 1.77 1.16 2.99 0 4.3-2.63 5.25-5.14 5.53.4.35.76 1.04.76 2.1v2.41c0 .3.2.65.78.54A11.2 11.2 0 0 0 12 .8Z"/></svg></a></nav>
+    <nav aria-label="Footer navigation"><a href="/datasets/">Datasets</a><a href="/guides/">Guides</a><a href="https://chicagobudget.com/disclosures">Disclosures</a><a href="https://chicagobudget.com/sources">Sources</a><a href="https://chicagobudget.com/glossary">Glossary</a><a href="https://chicagobudget.com/gaps">What we could not find</a><a href="https://chicagobudget.com/contribute">Contribute</a><a href="/methods">How it works</a><a class="footer-github" href="https://github.com/gettty/chicagobudget" aria-label="Chicago Budget on GitHub"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M12 .8a11.2 11.2 0 0 0-3.54 21.83c.56.1.77-.24.77-.54v-2.1c-3.13.68-3.79-1.33-3.79-1.33-.51-1.3-1.25-1.64-1.25-1.64-1.02-.7.08-.68.08-.68 1.13.08 1.73 1.16 1.73 1.16 1 .1.81 1.25 3.3.84.1-.73.39-1.25.71-1.54-2.5-.28-5.13-1.25-5.13-5.54 0-1.22.44-2.21 1.16-2.99-.12-.28-.51-1.42.11-2.95 0 0 .95-.3 3.08 1.14A10.7 10.7 0 0 1 12 6.88c.95 0 1.9.13 2.79.37 2.13-1.44 3.07-1.14 3.07-1.14.62 1.53.23 2.67.11 2.95.72.78 1.16 1.77 1.16 2.99 0 4.3-2.63 5.25-5.14 5.53.4.35.76 1.04.76 2.1v2.41c0 .3.2.65.78.54A11.2 11.2 0 0 0 12 .8Z"/></svg></a></nav>
     <p class="footer-credit">Budget data from <a href="https://chicagobudget.com">ChicagoBudget.com</a>, <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>. See <a href="/methods#credit">credit and data notices</a>.</p>
   </div>
 </footer>

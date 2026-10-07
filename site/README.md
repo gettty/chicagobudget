@@ -2,11 +2,19 @@
 
 Static Astro site for the exported budget data in `public/data/`. Build the data with `python3 build/export_site.py` from the repository root, then in this directory run `npm ci`, `npm run check`, and `npm run build`. Astro's current checker needs Node 20.19+ or 22.12+; the project includes a local Node 22 dev dependency for machines with older system Node.
 
-The build writes `dist/` only. It does not deploy. Important box pages are pre-rendered; deep links also use the static `/box-shell/` and Cloudflare Pages `_redirects` rewrites. The rewrite destination must include its trailing slash: `/box-shell` triggers a Pages canonical redirect that loses the original box ID. Keep those rewrites if changing hosts. Test navigation against the deployed Pages preview, since Astro dev does not exercise `_redirects`.
+The build writes `dist/` only. It does not deploy. Important box pages are pre-rendered. A scoped Cloudflare Pages advanced-mode worker serves those static files first and renders other valid budget IDs as complete HTML from the exported data. Unknown IDs return 404 and temporary data failures return 503. Do not restore blanket `/box-shell/` rewrites, which override real static pages. Test the assembled bundle with `npx wrangler pages dev dist`, since Astro dev does not exercise the Pages worker.
 
 Production combines this site's existing budget pages with the Lakefront homepage. After building `site/`, run `cd ../lakefront && npm ci && npm run data && VITE_DATA_BASE=/visual-data/ SITE_URL=https://chicagobudget.com npm run build`, then from the repository root run `python3 scripts/assemble_production_site.py` and `python3 tests/check_combined_site.py`. Deploy the resulting `site/dist/`. The assembler retains all old routes and `/data/` files, puts the new explorer's data under `/visual-data/`, and replaces only the homepage and shared landing assets. Do not deploy either unassembled `dist/` by itself.
 
 After deployment, run `PREVIEW_URL=https://your-preview.pages.dev node tests/navigation-browser.mjs` with Playwright installed (and `CHROMIUM_PATH` if needed). This follows budget category links, validates destination content, and exercises drill-down and return paths rather than only checking hrefs or generated files.
+
+## Search and dataset discovery
+
+Assembly runs `scripts/build_discovery.py` after both sites are combined. It generates segmented sitemaps and a sitemap index from rendered, self-canonical HTML, plus `discovery-manifest.json` and a small `llms.txt` navigation aid. It does not invent modification dates or change AI-training permissions. Canonical URLs use `https://chicagobudget.com`, with `/methods` as the slash-free exception. Dataset catalog and guide pages link to the versioned public snapshot and explain fiscal-period and double-counting limitations.
+
+Validation includes `python3 -m unittest discover -s tests -p 'test_discovery.py'` from the repository root and both combined-output checkers. With Pages dev running on port 4182, run `python3 tests/check_pages_http.py http://127.0.0.1:4182 --dist site/dist` from the root, then `PREVIEW_URL=http://127.0.0.1:4182 node tests/seo-browser.mjs` from `site/` after installing Playwright Chromium. These checks exercise actual worker responses and JavaScript-enabled and disabled discovery.
+
+Search Console and Bing ownership verification, sitemap submission, production alias redirects, and any crawl-policy or analytics account configuration require separately authorized account access. No credentials or automatic URL-submission jobs are included. `llms.txt` and structured metadata do not guarantee rankings or AI citations.
 
 ## Production deployment
 
@@ -25,6 +33,15 @@ Validation: `npm run check` and `npm test`. For real browser checks, run `npx pl
 Optional build-time environment variables:
 
 - `PUBLIC_REPO_URL`: an HTTPS GitHub repository URL, such as `https://github.com/owner/repo`. When set, exported, tracked `repo_path` sources without an official URL link to `blob/main/<path>`. Do not configure an unverified repository URL.
-- `PUBLIC_CF_ANALYTICS_TOKEN`: Cloudflare Web Analytics site token. The beacon script is emitted only when this is set. It is not configured for local builds.
+- `PUBLIC_ACTION_ANALYTICS_ENDPOINT=/_events`: enables the optional action-count controls in both Astro and Lakefront builds. Counts remain off for each visitor until explicit consent. DNT/GPC suppress counting. The deployed worker also requires `ACTION_ANALYTICS_ENABLED=true` and the `ACTION_COUNTS` D1 binding.
+- Page-view analytics uses the existing Cloudflare zone-level automatic Web Analytics installation. Do not inject a second manual beacon.
+
+## Optional aggregate action counts
+
+`wrangler.jsonc` keeps production and preview D1 databases separate. Apply `migrations/0001_action_counts.sql` before enabling the endpoint. The production zone has an endpoint-only `/_events` edge rule limiting requests to 10 per 10 seconds per IP/Cloudflare location, with a 10-second block. Verify that protection before enabling writes, and set `ACTION_ANALYTICS_ENABLED=false` to disable them. It mitigates bursts, not distributed abuse or synthetic counts. Previews require the explicit preview flag and a non-main Pages branch. Local development is disabled by default.
+
+The database stores daily totals by four allowlisted action types and budget group, not individual event records, names, URLs, searches, IPs or user identifiers. These are consented action counts, not unique visitors or verified humans. Cloudflare still processes transport metadata. Do not enable request-body logging. Purge old aggregates with `DELETE FROM action_counts WHERE day < date('now', '-90 days')`; maintenance is scheduled weekly outside GitHub and must be monitored. This is not a guarantee of exact 90-day deletion if maintenance cannot run.
+
+For IndexNow release assembly, use `--indexnow-key-file /private/key` and, when available, `--previous-manifest /private/previous-deployment/discovery-manifest.json`. Retain the newly deployed manifest outside a fresh build for the next release. The first rollout uses a clearly scoped live baseline and submits only new paths independently verified to have returned 404 before deployment, not the entire legacy inventory.
 
 No per-box JSON download files are created. Box pages show citations and optional repository source links instead.

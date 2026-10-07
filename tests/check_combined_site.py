@@ -17,7 +17,9 @@ def check(dist: Path) -> None:
     for name in ("index.html", "methods.html", "methods/index.html", "city/index.html", "cps/index.html",
                  "parks/index.html", "find/index.html", "box-shell/index.html",
                  "data/sources.json", "data/manifest.json", "visual-data/core.json",
-                 "visual-data/tree.json", "visual-data/sources.json", "_redirects"):
+                 "visual-data/tree.json", "visual-data/sources.json", "_redirects", "_worker.js", "_routes.json",
+                 "sitemap-index.xml", "discovery-manifest.json", "robots.txt", "llms.txt",
+                 "datasets/index.html", "guides/index.html"):
         if not (dist / name).is_file():
             raise AssertionError(f"Missing combined Pages asset: {name}")
     home = (dist / "index.html").read_text()
@@ -36,10 +38,22 @@ def check(dist: Path) -> None:
     if core["meta"]["nodes"] != 47360:
         raise AssertionError("Lakefront budget box count changed unexpectedly")
     redirects = (dist / "_redirects").read_text()
-    for prefix in ("/city/box/*", "/cps/box/*", "/parks/box/*", "/style-guide"):
-        if prefix not in redirects:
-            raise AssertionError(f"Missing legacy redirect: {prefix}")
-    print("Combined Pages bundle: Lakefront homepage, isolated source indexes, legacy deep pages, and redirects OK")
+    if "/box-shell/ 200" in redirects:
+        raise AssertionError("Budget rewrites must not shadow pre-rendered HTML")
+    for rule in ("/style-guide / 301", "/style-guide/ / 301", "/methods/ /methods 301"):
+        if rule not in redirects:
+            raise AssertionError(f"Missing canonical redirect: {rule}")
+    routes = json.loads((dist / "_routes.json").read_text())
+    for gov in ("city", "cps", "parks"):
+        if f"/{gov}/box/*" not in routes["include"]:
+            raise AssertionError(f"Missing server-rendered fallback for {gov}")
+        if f'href="/{gov}/"' not in home:
+            raise AssertionError(f"Homepage lacks a crawlable {gov} link")
+    if 'href="https://chicagobudget.com/methods"' not in methods:
+        raise AssertionError("Methods canonical is missing")
+    if "Sitemap: https://chicagobudget.com/sitemap-index.xml" not in (dist / "robots.txt").read_text():
+        raise AssertionError("Sitemap discovery is missing from robots.txt")
+    print("Combined Pages bundle: real HTML routes, isolated data, canonicals and sitemap OK")
 
 
 if __name__ == "__main__":

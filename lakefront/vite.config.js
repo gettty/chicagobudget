@@ -2,6 +2,7 @@ import { defineConfig } from 'vite';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { words, count, dollars, oneIn } from './src/lib/format.js';
+import { homepageContent, siteMetadata, websiteSchema } from './prerender.js';
 
 /**
  * Fill %TOKENS% in the HTML (title, description, preview text, first-paint numbers) from the data.
@@ -11,7 +12,7 @@ function budgetFacts() {
   const values = () => {
     const core = JSON.parse(readFileSync(resolve(__dirname, 'public/data/core.json'), 'utf8'));
     const F = core.facts;
-    const site = (process.env.SITE_URL || '').replace(/\/$/, '');
+    const site = (process.env.SITE_URL || 'https://chicagobudget.com').replace(/\/$/, '');
     const dataBase = process.env.VITE_DATA_BASE || '/data/';
     if (!dataBase.startsWith('/') || !dataBase.endsWith('/')) throw new Error('VITE_DATA_BASE must be an absolute path ending in /');
     return {
@@ -31,8 +32,23 @@ function budgetFacts() {
       order: 'pre',
       handler(html, context) {
         const v = values();
-        const page = context.path.includes('methods') ? '/methods' : '/';
-        v.SITE_META = v.SITE_URL ? `<meta property="og:url" content="${v.SITE_URL}${page}">\n<link rel="canonical" href="${v.SITE_URL}${page}">` : '';
+        const methods = context.path.includes('methods');
+        const page = methods ? '/methods' : '/';
+        v.SITE_META = siteMetadata(page, v.SITE_URL) + (methods ? '' : '\n' + websiteSchema());
+        // Cloudflare Web Analytics does not support custom events. Do not embed
+        // another page-view beacon: the site owner may enable one via Pages.
+        // Action collection requires both a same-origin endpoint and visitor consent.
+        const endpoint = process.env.PUBLIC_ACTION_ANALYTICS_ENDPOINT || '';
+        v.ANALYTICS = /^\/[a-z0-9/_-]+$/i.test(endpoint) && !endpoint.startsWith('//')
+          ? `<script type="module">import { installActionTracking } from '/src/lib/actionAnalytics.js'; installActionTracking(window, ${JSON.stringify(endpoint)});</script>`
+          : '';
+        if (!methods) {
+          const content = homepageContent(JSON.parse(readFileSync(resolve(__dirname, 'public/data/core.json'), 'utf8')), JSON.parse(readFileSync(resolve(__dirname, 'public/data/sources.json'), 'utf8')));
+          v.GOVERNMENTS = content.governments;
+          v.PROGRAM_ROWS = content.rows;
+          v.RECEIPT_ROWS = content.receipt;
+          v.NOTABLE_CARDS = content.cards;
+        }
         return html.replace(/%([A-Z_]+)%/g, (m, k) => v[k] ?? m);
       },
     },

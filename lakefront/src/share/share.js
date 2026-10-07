@@ -8,6 +8,7 @@ export function initShare(core) {
   const PER = { resident: core.meta.population, household: core.meta.households };
   let per = 'resident';
   const list = document.getElementById('ritems');
+  list.replaceChildren(); // Build-time receipt is replaced, never duplicated during hydration.
   const ordered = [...core.purposes].sort((a, b) => b.amount - a.amount);
   const rows = ordered.map((p) => {
     const amt = el('span', { class: 'amt' }, '$0');

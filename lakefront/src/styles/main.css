@@ -16,7 +16,7 @@
 [hidden] { display: none !important }
 html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; scroll-padding-top: 64px }
 body { margin: 0; background: var(--paper); color: var(--ink); font: 16px/1.5 var(--sans); -webkit-font-smoothing: antialiased; overflow-x: clip }
-a { color: var(--city) }
+a { color: #2067bd }
 button { font: inherit; color: inherit }
 :focus-visible { outline: 2px solid var(--city); outline-offset: 2px; border-radius: 6px }
 .wrap { max-width: 1240px; margin: 0 auto; padding: 0 24px }
@@ -26,7 +26,7 @@ button { font: inherit; color: inherit }
 .skip { position: absolute; left: 12px; top: -40px; z-index: 50; background: var(--ink); color: #fff; padding: 8px 12px; border-radius: 8px; text-decoration: none }
 .skip:focus { top: 10px }
 .fine { font-size: 13px; color: var(--ink-2); line-height: 1.45 }
-.linkbtn { border: 0; background: none; padding: 0; color: var(--city); font-weight: 600; cursor: pointer; text-align: left }
+.linkbtn { border: 0; background: none; padding: 0; color: #2067bd; font-weight: 600; cursor: pointer; text-align: left }
 .linkbtn:hover { text-decoration: underline }
 kbd { font: 11px var(--sans); border: 1px solid var(--rule-2); border-radius: 5px; padding: 1px 5px; background: #fff; color: var(--ink-2) }
 
@@ -90,6 +90,12 @@ h1 .num { font-size: 1.14em; line-height: .8; background: linear-gradient(transp
 .sentence .num { font-size: 1.22em; font-weight: 700 }
 .tablewrap { display: none; margin-top: 14px; max-height: 340px; overflow: auto; border: 1px solid var(--rule); border-radius: 12px }
 .tablewrap.on { display: block }
+.budget-browse { margin: 24px 0; padding: 20px 24px; border: 1px solid var(--rule); border-radius: 12px; background: var(--wash) }
+.budget-browse h2 { font-size: 19px; margin: 0 0 12px }
+.budget-browse ul { display: flex; flex-wrap: wrap; gap: 10px 28px; padding: 0; margin: 0; list-style: none }
+.budget-browse li { font-size: 14px }
+.budget-browse a { color: inherit; text-underline-offset: 3px }
+.budget-browse .fine { margin: 12px 0 0 }
 table { border-collapse: collapse; width: 100%; font-size: 13px }
 th, td { padding: 7px 12px; border-bottom: 1px solid var(--rule); text-align: left; vertical-align: top }
 th { position: sticky; top: 0; background: #fff; font-weight: 600; color: var(--ink-2) }
@@ -175,8 +181,8 @@ h2 { font-family: var(--serif); font-variation-settings: "opsz" 48; font-weight:
 @keyframes rin { from { opacity: 0; transform: translateY(-6px) } to { opacity: 1; transform: none } }
 .rrow .rl { border: 0; background: none; padding: 0; text-align: right; color: var(--ink-2); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
 .rrow .rl:hover { color: var(--ink); text-decoration: underline }
-.rbar { display: flex; gap: 2px; height: 14px; border-radius: 4px; overflow: hidden; min-width: 0 }
-.rbar button { border: 0; padding: 0; min-width: 2px; height: 100%; background: #E3E8ED; cursor: pointer; transition: background .2s }
+.rbar { display: flex; gap: 2px; height: 24px; border-radius: 4px; overflow: hidden; min-width: 0 }
+.rbar button { border: 0; padding: 0; min-width: 24px; height: 100%; background: #E3E8ED; cursor: pointer; transition: background .2s }
 .rbar button:hover { background: #C6CFD8 }
 .rbar button.sel { cursor: default }
 .rrow .rv { white-space: nowrap; overflow: hidden; text-overflow: ellipsis }

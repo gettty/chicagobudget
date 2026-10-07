@@ -15,7 +15,7 @@ export function initStories(core, atlas) {
   const reduce = reduceMotion();
   const wrap = document.getElementById('stories');
   const open = (id, opts) => (e) => { e.preventDefault(); atlas.open(id, opts); };
-  const cta = (label, id, opts) => el('a', { class: 'cta', href: '#explore', onclick: open(id, opts) }, label + ' →');
+  const cta = (label, id, opts) => el('a', { class: 'cta', href: id.startsWith('p:') ? `/methods#groups` : `/${id.split('.')[0] === 'city-twice' ? 'city' : id.split('.')[0]}/box/${encodeURIComponent(id)}/`, onclick: open(id, opts) }, label + ' →');
   const card = (cls, ...kids) => el('article', { class: 'card ' + cls }, ...kids);
   const kicker = (t) => el('p', { class: 'ck' }, star(), t);
 

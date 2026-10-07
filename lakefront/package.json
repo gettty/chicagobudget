@@ -8,7 +8,7 @@
     "data": "python3 scripts/build-data.py",
     "test": "python3 -m unittest discover -s tests -p 'financial*.py' && node --test tests/*.test.js",
     "dev": "vite",
-    "build": "vite build && node scripts/postbuild.mjs",
+    "build": "vite build && node scripts/postbuild.mjs && node --test checks/seo.mjs",
     "preview": "vite preview"
   },
   "devDependencies": {

@@ -1,5 +1,3 @@
-/city/box/* /box-shell/ 200
-/cps/box/* /box-shell/ 200
-/parks/box/* /box-shell/ 200
+/methods/ /methods 301
 /style-guide / 301
 /style-guide/ / 301
