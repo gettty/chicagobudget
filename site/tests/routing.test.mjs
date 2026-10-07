@@ -19,8 +19,10 @@ const assets = {ASSETS: {async fetch(request) {
 }}};
 const request = (path, method = 'GET') => worker.fetch(new Request(`https://chicagobudget.com${path}`, {method}), assets);
 
-test('box routes are isolated from static data and redirect rewrites', () => {
-  assert.deepEqual(routes.include, ['/city/box/*', '/cps/box/*', '/parks/box/*']);
+test('box and action routes are isolated from static data and redirect rewrites', () => {
+  assert.deepEqual(routes.include, ['/city/box/*', '/cps/box/*', '/parks/box/*', '/_events']);
+  assert.ok(!routes.include.some(path => path === '/*' || path.startsWith('/data/') || path === '/data/*'));
+  assert.deepEqual(routes.exclude, []);
   assert.ok(!redirects.includes('/box-shell/'));
   assert.ok(redirects.includes('/methods/ /methods 301'));
   assert.ok(redirects.includes('/style-guide / 301'));
