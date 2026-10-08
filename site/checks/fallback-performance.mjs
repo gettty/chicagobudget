@@ -117,7 +117,8 @@ for (const id of samples) {
 
 const paths = [
   '/city/box/city.nonexistent-audit-id/', '/cps/box/city.public-safety/',
-  '/parks/box/%2e%2e/', '/city/box/city.%2Fsecret/', '/city/box/%ZZ/',
+  // URL parsing normalizes encoded '..' before the worker sees it; '...' stays malformed.
+  '/parks/box/%2e%2e%2e/', '/city/box/city.%2Fsecret/', '/city/box/%ZZ/',
   '/city/box/city.%3Cscript%3E/', '/city/box/city..oops/', '/city/box/city.not-real-seo/extra/',
 ];
 for (const path of paths) for (const method of ['GET', 'HEAD']) {
@@ -150,7 +151,7 @@ for (const path of ['/city/box/city.public-safety/', ...(isStatic(predefined[3])
 // the retry must render successfully, rather than cache a transient 404/503.
 const retryId = predefined[0];
 const retryUrl = `${origin}${route(retryId)}`;
-const shard = (() => { let hash = 2166136261; for (const byte of Buffer.from(retryId)) hash = Math.imul(hash ^ byte, 16777619) >>> 0; return (hash & 1023).toString(16).padStart(3, '0'); })();
+const shard = (() => { let hash = 2166136261; for (const byte of Buffer.from(retryId)) hash = Math.imul(hash ^ byte, 16777619) >>> 0; return (hash & 511).toString(16).padStart(3, '0'); })();
 // Published export has no multi-source nodes. Mutate both inputs to exercise
 // array-source rendering with two genuine public citations.
 const citations = data('sources.json').filter(Boolean).slice(0, 2);
