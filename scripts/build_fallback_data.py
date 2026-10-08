@@ -103,6 +103,7 @@ def build(data_dir):
     output = data_dir / 'fallback'
     stage = Path(tempfile.mkdtemp(prefix='.fallback-stage-', dir=data_dir))
     backup = None
+    replaced = False
     try:
         for name, payload in payloads.items():
             (stage / f'{name}.json').write_bytes(payload)
@@ -112,6 +113,7 @@ def build(data_dir):
             os.replace(output, backup)
         try:
             os.replace(stage, output)
+            replaced = True
         except BaseException:
             if backup is not None:
                 os.replace(backup, output)
@@ -120,7 +122,7 @@ def build(data_dir):
     finally:
         if stage.exists():
             shutil.rmtree(stage)
-        if backup is not None and backup.exists():
+        if replaced and backup is not None and backup.exists():
             shutil.rmtree(backup)
     print(f'fallback: {len(records)} records, {len(shards)} shards, max {max(sizes)} bytes, median {sorted(sizes)[len(sizes)//2]} bytes')
     return records
