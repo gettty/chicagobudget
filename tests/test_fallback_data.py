@@ -15,7 +15,8 @@ class FallbackDataTests(unittest.TestCase):
             (data / 'chunks').mkdir()
             root = {'id': 'city', 'root': 'city', 'name': 'City', 'amount_cents': 100, 'parent_id': None}
             branch = {'id': 'city.branch', 'root': 'city', 'name': 'Branch', 'amount_cents': 90, 'parent_id': 'city', 'source': [0, 2]}
-            leaf = {'id': 'city.branch.leaf', 'root': 'city', 'name': 'Leaf', 'amount_cents': 50, 'parent_id': 'city.branch', 'source': 1}
+            leaf = {'id': 'city.branch.leaf', 'root': 'city', 'name': 'Leaf', 'amount_cents': 50, 'parent_id': 'city.branch', 'source': 1,
+                    'note': 'Important note', 'why': 'Reason', 'caveats': ['Limited scope'], 'extra': {'private': 'not rendered'}}
             stub = {'id': 'city.other', 'name': 'Other', 'amount_cents': 10}
             files = {
                 'manifest.json': {'chunks': {'city': 'chunks/root.json', 'city.branch': 'chunks/branch.json'}},
@@ -33,6 +34,10 @@ class FallbackDataTests(unittest.TestCase):
             self.assertEqual(records['city.branch'][3], [{'name': 'A'}, {'name': 'C'}])
             self.assertEqual(records['city.branch.leaf'][2], [project(root, CRUMB_FIELDS), project(branch, CRUMB_FIELDS)])
             self.assertNotIn('parent_id', records['city.branch'][0])
+            self.assertEqual(records['city.branch.leaf'][0]['note'], 'Important note')
+            self.assertEqual(records['city.branch.leaf'][0]['why'], 'Reason')
+            self.assertEqual(records['city.branch.leaf'][0]['caveats'], ['Limited scope'])
+            self.assertNotIn('extra', records['city.branch.leaf'][0])
             for node_id, record in records.items():
                 shard = json.loads((data / 'fallback' / f'{bucket_for_id(node_id)}.json').read_text())
                 self.assertEqual(shard['version'], 1)
@@ -56,11 +61,14 @@ class FallbackDataTests(unittest.TestCase):
         spine = json.loads((data / 'spine.json').read_text())
         sources = json.loads((data / 'sources.json').read_text())
         records = build_records(data)
+        chunks = {key: json.loads((data / path).read_text()) for key, path in manifest.items()}
+        exported_ids = {n['id'] for n in spine}
+        exported_ids.update(n['id'] for chunk in chunks.values() for n in chunk['nodes'])
+        self.assertEqual(set(records), exported_ids, 'every exported node and spine ID has a fallback record')
         for node_id in ['city.public-safety', 'cps', 'parks', 'city-twice']:
-            if node_id not in records:
-                continue
+            self.assertIn(node_id, records)
             key = max((k for k in manifest if node_id == k or node_id.startswith(k + '.')), key=len)
-            chunk = json.loads((data / manifest[key]).read_text())
+            chunk = chunks[key]
             root = 'city-twice' if node_id.startswith('city-twice.') else node_id.split('.')[0]
             node = next((n for n in chunk['nodes'] if n['id'] == node_id and n['root'] == root), None) or next((n for n in spine if n['id'] == node_id and n.get('root', root) == root), None)
             self.assertEqual(records[node_id][0], project(node, NODE_FIELDS))
