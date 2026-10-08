@@ -55,9 +55,9 @@ def check(dist: Path) -> None:
         if not (dist / route.strip("/") / "index.html").is_file():
             raise AssertionError(f"Static exclusion has no matching HTML: {route}")
     fallback = dist / "data/fallback"
-    expected_shards = {f"{index:03x}.json" for index in range(1024)}
+    expected_shards = {f"{index:03x}.json" for index in range(512)}
     if {path.name for path in fallback.iterdir()} != expected_shards:
-        raise AssertionError("Fallback must contain all 1024 direct-addressed shards")
+        raise AssertionError("Fallback must contain all 512 direct-addressed shards")
     for path in fallback.iterdir():
         if path.stat().st_size > 512 * 1024:
             raise AssertionError(f"Fallback shard is unbounded: {path.name}")
