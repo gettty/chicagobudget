@@ -40,7 +40,7 @@ const predefined = [
   'parks.parks-and-recreation.central-region.donovan-1029.corporate-fund.611010',
   'city.city-development.department-of-cultural-affairs-and-special-event.0355-special-events-and-municipal-hotel-operator.0355-2015-0005.budgeted-turnover-vacancy-savings-special-events', // signed negative
   'city-twice.services-between-funds',
-  'parks.maintaining-the-parks.facilities-management-8460.corporate-fund.611005', // rounding child
+  'parks.parks-and-recreation.central-region.archer-0250.corporate-fund.611005', // rounding child
   'parks.maintaining-the-parks.facilities-management-8460.corporate-fund.611005.1114-0', // cross-chunk breadcrumb
   'city.citywide.corporate-fund.0100-2005-0142.other-vendors.gladys-r-wilson-associates-pc', // child note
 ];
@@ -59,7 +59,7 @@ for (const gov of ['city', 'cps', 'parks']) {
 
 // Filesystem-backed ASSETS preserves byte content for static paths and records JSON
 // transfer sizes. No redirect emulation, request cache, global parsing, or edge latency.
-function assets({missing = null, transform = null} = {}) {
+function assets({missing = null, staticMiss = null, transform = null} = {}) {
   const metrics = {assetReads: 0, jsonReads: 0, jsonBytes: 0, jsonPaths: []};
   return {metrics, env: {ASSETS: {async fetch(request) {
     const pathname = new URL(request.url).pathname;
@@ -75,7 +75,7 @@ function assets({missing = null, transform = null} = {}) {
       metrics.jsonReads++;
       metrics.jsonPaths.push(pathname);
     }
-    if (pathname === missing || !existsSync(file) || !(await stat(file)).isFile()) return new Response('STATIC 404', {status: 404});
+    if (pathname === missing || pathname === staticMiss || !existsSync(file) || !(await stat(file)).isFile()) return new Response('STATIC 404', {status: 404});
     let body = await readFile(file);
     if (transform && pathname.startsWith('/data/')) body = transform(pathname, body);
     if (pathname.startsWith('/data/') && pathname.endsWith('.json')) metrics.jsonBytes += body.byteLength;
@@ -114,6 +114,18 @@ for (const id of samples) {
   rows.push({id, baseline: {...old.metrics, elapsedMs: old.elapsedMs}, optimized: {...next.metrics, elapsedMs: next.elapsedMs}});
   for (const method of ['HEAD']) compare(await run(baseline, url, method), await run(candidate, url, method), `${id} HEAD`);
 }
+// City-twice is currently prerendered. Force an ASSETS 404 so its fallback
+// record and special root/breadcrumb logic are compared rather than skipped.
+if (isStatic(predefined[3])) {
+  const url = `${origin}${route(predefined[3])}`;
+  for (const method of ['GET', 'HEAD']) {
+    const old = await run(baseline, url, method, {staticMiss: route(predefined[3])});
+    const next = await run(candidate, url, method, {staticMiss: route(predefined[3])});
+    compare(old, next, `forced City-twice fallback ${method}`);
+    assert.equal(next.status, 200);
+    assert.equal(next.metrics.jsonReads, 1);
+  }
+}
 
 const paths = [
   '/city/box/city.nonexistent-audit-id/', '/cps/box/city.public-safety/',
@@ -121,12 +133,17 @@ const paths = [
   '/parks/box/%2e%2e%2e/', '/city/box/city.%2Fsecret/', '/city/box/%ZZ/',
   '/city/box/city.%3Cscript%3E/', '/city/box/city..oops/', '/city/box/city.not-real-seo/extra/',
 ];
+let unknownCost;
 for (const path of paths) for (const method of ['GET', 'HEAD']) {
   const url = `${origin}${path}`;
   const old = await run(baseline, url, method);
   const next = await run(candidate, url, method);
   compare(old, next, `${method} ${path}`);
   assert.equal(next.status, 404, `${method} ${path}`);
+  if (path === paths[0] && method === 'GET') {
+    assert.equal(next.metrics.jsonReads, 1, 'well-formed unknown ID makes exactly one shard read');
+    unknownCost = {baseline: old.metrics, optimized: next.metrics};
+  }
 }
 for (const host of ['preview.chicagobudget.pages.dev', 'localhost']) {
   for (const path of [route(predefined[0]), paths[0]]) {
@@ -186,4 +203,4 @@ const totals = rows.reduce((o, row) => {
   for (const side of ['baseline', 'optimized']) for (const key of ['jsonReads', 'jsonBytes', 'assetReads', 'elapsedMs']) o[side][key] += row[side][key];
   return o;
 }, {baseline: {jsonReads: 0, jsonBytes: 0, assetReads: 0, elapsedMs: 0}, optimized: {jsonReads: 0, jsonBytes: 0, assetReads: 0, elapsedMs: 0}});
-console.log(JSON.stringify({note: 'Local Node wall-clock plus filesystem I/O and JSON asset read/byte proxies only, NOT Cloudflare CPU, production latency, or billed subrequests.', samples: rows.length, totals, rows}, null, 2));
+console.log(JSON.stringify({note: 'Local Node wall-clock plus filesystem I/O and JSON asset read/byte proxies only, NOT Cloudflare CPU, production latency, or billed subrequests.', samples: rows.length, totals, unknownCost, rows}, null, 2));
