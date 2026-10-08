@@ -19,7 +19,7 @@ const assets = (shard = payload) => {
 };
 
 test('hash matches generator and fallback reads just one compact shard', async () => {
-  assert.equal(fallbackBucket(id), '20e');
+  assert.equal(fallbackBucket(id), '00e');
   const env = assets();
   const response = await worker.fetch(request(), env);
   assert.equal(response.status, 200);

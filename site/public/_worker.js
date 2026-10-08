@@ -79,7 +79,7 @@ async function assetJson(env, path) {
 export function fallbackBucket(id) {
   let hash = 2166136261;
   for (const byte of new TextEncoder().encode(id)) hash = Math.imul(hash ^ byte, 16777619) >>> 0;
-  return (hash & 1023).toString(16).padStart(3, '0');
+  return (hash & 511).toString(16).padStart(3, '0');
 }
 
 function render(node, children, crumbs, sources, gov) {

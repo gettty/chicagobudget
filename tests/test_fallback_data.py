@@ -9,7 +9,7 @@ from scripts.build_fallback_data import BUCKETS, MAX_SHARD_BYTES, NODE_FIELDS, C
 
 class FallbackDataTests(unittest.TestCase):
     def test_hash_vectors_and_equivalence(self):
-        self.assertEqual(bucket_for_id('city.public-safety'), '20e')
+        self.assertEqual(bucket_for_id('city.public-safety'), '00e')
         with tempfile.TemporaryDirectory() as temporary:
             data = Path(temporary)
             (data / 'chunks').mkdir()

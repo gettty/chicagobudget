@@ -9,7 +9,7 @@ import shutil
 import tempfile
 from pathlib import Path
 
-BUCKETS = 1024
+BUCKETS = 512
 MAX_SHARD_BYTES = 512 * 1024
 NODE_FIELDS = ('id', 'root', 'name', 'amount_cents', 'basis', 'period_label', 'note', 'why', 'caveats')
 CHILD_FIELDS = ('id', 'root', 'name', 'amount_cents', 'note', 'kind')
