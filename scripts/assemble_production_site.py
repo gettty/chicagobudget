@@ -61,6 +61,12 @@ def assemble(site: Path, lakefront: Path, previous_manifest: Path | None = None,
         raise ValueError("Legacy source index was unexpectedly changed")
     if key:
         (site / f"{key}.txt").write_text(key, encoding="utf-8")
+    # Derive runtime-only data from this exact privacy-safe export, never from
+    # the unredacted research inputs. Generate routing from actual built HTML.
+    subprocess.run([sys.executable, str(ROOT / "scripts/build_fallback_data.py"),
+                    "--data-dir", str(site / "data")], check=True)
+    subprocess.run([sys.executable, str(ROOT / "scripts/build_static_routes.py"),
+                    str(site)], check=True)
     discovery = [sys.executable, str(ROOT / "scripts/build_discovery.py"), str(site)]
     if previous_manifest:
         discovery += ["--previous-manifest", str(previous_manifest)]

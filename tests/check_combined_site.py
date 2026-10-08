@@ -44,6 +44,26 @@ def check(dist: Path) -> None:
         if rule not in redirects:
             raise AssertionError(f"Missing canonical redirect: {rule}")
     routes = json.loads((dist / "_routes.json").read_text())
+    rules = routes["include"] + routes["exclude"]
+    if len(rules) > 100 or any(len(rule.encode("utf-8")) > 100 for rule in rules):
+        raise AssertionError("Pages invocation routing exceeds supported limits")
+    if "/_events" not in routes["include"]:
+        raise AssertionError("Action endpoint must remain worker-routed")
+    for route in routes["exclude"]:
+        if not any(route.startswith(f"/{gov}/box/") for gov in ("city", "cps", "parks")) or any(char in route for char in "*?#[%"):
+            raise AssertionError(f"Unsafe static exclusion: {route}")
+        if not (dist / route.strip("/") / "index.html").is_file():
+            raise AssertionError(f"Static exclusion has no matching HTML: {route}")
+    fallback = dist / "data/fallback"
+    expected_shards = {f"{index:03x}.json" for index in range(1024)}
+    if {path.name for path in fallback.iterdir()} != expected_shards:
+        raise AssertionError("Fallback must contain all 1024 direct-addressed shards")
+    for path in fallback.iterdir():
+        if path.stat().st_size > 512 * 1024:
+            raise AssertionError(f"Fallback shard is unbounded: {path.name}")
+        payload = json.loads(path.read_text())
+        if payload.get("version") != 1 or not isinstance(payload.get("records"), dict):
+            raise AssertionError(f"Invalid fallback shard: {path.name}")
     for gov in ("city", "cps", "parks"):
         if f"/{gov}/box/*" not in routes["include"]:
             raise AssertionError(f"Missing server-rendered fallback for {gov}")
