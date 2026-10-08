@@ -52,7 +52,8 @@ export async function handleActionEvent(request, env) {
 const governments = {city: 'City of Chicago', cps: 'Chicago Public Schools', parks: 'Chicago Park District'};
 const basisLabels = {budget: 'In the budget', tied: 'Adds up exactly', gov_estimate: 'Government estimate', paid_to_date: 'Paid so far', proxy: 'Our estimate', residual: 'Leftover', adjustment: 'Adjustment'};
 const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[char]));
-const money = cents => new Intl.NumberFormat('en-US', {style: 'currency', currency: 'USD'}).format(cents / 100);
+const currencyFormatter = new Intl.NumberFormat('en-US', {style: 'currency', currency: 'USD'});
+const money = cents => currencyFormatter.format(cents / 100);
 const link = node => {
   const root = node.root || node.id.split('.')[0];
   return node.id === 'city-twice' ? '/city/counted-twice/' : node.id === root ? `/${root}/` : `/${root === 'city-twice' ? 'city' : root}/box/${encodeURIComponent(node.id)}/`;
@@ -71,6 +72,14 @@ async function assetJson(env, path) {
   const response = await env.ASSETS.fetch(new Request(`${origin}/data/${path}`, {headers: {Accept: 'application/json'}}));
   if (!response.ok) throw new Error(`Missing budget data: ${path} (${response.status})`);
   return response.json();
+}
+
+// FNV-1a over UTF-8, matched by scripts/build_fallback_data.py. No isolate-global
+// cache or in-flight promise: each response uses only this deployment's ASSETS.
+export function fallbackBucket(id) {
+  let hash = 2166136261;
+  for (const byte of new TextEncoder().encode(id)) hash = Math.imul(hash ^ byte, 16777619) >>> 0;
+  return (hash & 1023).toString(16).padStart(3, '0');
 }
 
 function render(node, children, crumbs, sources, gov) {
@@ -104,39 +113,15 @@ export default {
     // Validate decoded IDs before using them in an asset path or canonical URL.
     if (id.length > 1024 || !/^[a-z0-9][a-z0-9.-]*$/.test(id) || id.includes('..') || !(id.startsWith(`${gov}.`) || (gov === 'city' && id.startsWith('city-twice.')))) return notFound(request);
     try {
-    const manifest = await assetJson(env, 'manifest.json');
-    const keys = Object.keys(manifest.chunks).filter(key => id === key || id.startsWith(`${key}.`));
-    const key = keys.sort((a, b) => b.length - a.length)[0];
-    if (!key) return notFound(request);
-    const chunkPath = manifest.chunks[key];
-    if (!/^chunks\/[a-f0-9]+\.json$/.test(chunkPath)) throw new Error('Invalid chunk manifest');
-    const chunk = await assetJson(env, chunkPath);
-    const spine = await assetJson(env, 'spine.json');
+    const shard = await assetJson(env, `fallback/${fallbackBucket(id)}.json`);
+    if (shard?.version !== 1 || !shard.records || typeof shard.records !== 'object' || Array.isArray(shard.records)) throw new Error('Invalid fallback shard');
+    if (!Object.hasOwn(shard.records, id)) return notFound(request);
+    const record = shard.records[id];
+    if (!Array.isArray(record) || record.length !== 4) throw new Error('Invalid fallback record');
+    const [node, children, crumbs, sources] = record;
     const expectedRoot = id.startsWith('city-twice.') ? 'city-twice' : gov;
-    const node = chunk.nodes.find(n => n.id === id && n.root === expectedRoot) || spine.find(n => n.id === id && (n.root || expectedRoot) === expectedRoot);
-    if (!node) return notFound(request);
-    const children = [...(chunk.nodes || []), ...(chunk.stubs || []).map(n => ({...n, parent_id: n.parent_id || n.id.slice(0, n.id.lastIndexOf('.'))})), ...spine].filter(n => n.parent_id === id);
-    const uniqueChildren = [...new Map(children.map(n => [n.id, n])).values()].sort((a, b) => Math.abs(b.amount_cents) - Math.abs(a.amount_cents));
-    const byId = new Map([...spine, ...chunk.nodes].map(n => [n.id, n]));
-    const crumbs = [];
-    let parent = node.parent_id;
-    while (parent && crumbs.length < 30) {
-      if (!byId.has(parent)) {
-        const parentKey = Object.keys(manifest.chunks).filter(k => parent === k || parent.startsWith(`${k}.`)).sort((a, b) => b.length - a.length)[0];
-        if (parentKey) {
-          const parentChunk = await assetJson(env, manifest.chunks[parentKey]);
-          for (const candidate of parentChunk.nodes) byId.set(candidate.id, candidate);
-        }
-      }
-      const ancestor = byId.get(parent);
-      if (!ancestor) break;
-      crumbs.unshift(ancestor);
-      parent = ancestor.parent_id;
-    }
-    const sourceData = await assetJson(env, 'sources.json');
-    const indices = Array.isArray(node.source) ? node.source : [node.source];
-    const sources = indices.filter(Number.isInteger).map(i => sourceData[i]).filter(Boolean);
-    return htmlResponse(render(node, uniqueChildren.map(n => ({...n, root: n.root || expectedRoot})), crumbs, sources, gov), 200, request);
+    if (node?.id !== id || (node.root && node.root !== expectedRoot) || !Array.isArray(children) || !Array.isArray(crumbs) || !Array.isArray(sources)) throw new Error('Invalid fallback record');
+    return htmlResponse(render(node, children, crumbs, sources, gov), 200, request);
     } catch (error) {
       console.error('Budget data unavailable', error);
       return unavailable(request);
