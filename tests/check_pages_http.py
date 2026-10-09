@@ -126,6 +126,14 @@ def check(base, dist):
     assert static.is_file(), static
     static_body = require_html(base, '/city/box/city.public-safety/', 'public-safety')
     assert static_body == static.read_text(), 'Static box HTML was replaced by fallback'
+    routes = json.loads((dist / '_routes.json').read_text())
+    for gov in ('city', 'cps', 'parks'):
+        excluded = next((p for p in routes['exclude'] if p.startswith(f'/{gov}/box/') and p.endswith('/')), None)
+        assert excluded, f'No exact static exclusion for {gov}'
+        body = require_html(base, excluded)
+        assert body == (dist / excluded.lstrip('/') / 'index.html').read_text(), excluded
+        status, _, _ = fetch(base, excluded.rstrip('/') + '.not-a-real-box/')
+        assert status == 404, 'An exclusion must not swallow unknown descendants'
     source_index = json.loads((dist / 'data/sources.json').read_text())
     for gov, node in samples(dist):
         path = f'/{gov}/box/{node["id"]}/'
@@ -150,6 +158,15 @@ def check(base, dist):
     memo = '/city/box/city-twice.services-between-funds/'
     body = require_html(base, memo, 'One city fund paying another for services', '/city/counted-twice/')
     canonical(body, memo)
+    # These real dynamic paths returned resource-limit 1102 errors before the
+    # optimization. Preserve them as acceptance cases rather than testing only
+    # short category URLs that are already pre-rendered.
+    for path in (
+        '/cps/box/cps.schools.district-run.network-12-total.u29181.benefits.a57305/',
+        '/parks/box/parks.parks-and-recreation.central-region.donovan-1029.corporate-fund.611010/',
+    ):
+        body = require_html(base, path, '<h2>Sources</h2>', 'Open interactive view')
+        canonical(body, path)
     for path in ('/city/box/city.not-real-seo/', '/cps/box/city.public-safety/', '/city/box/city.%2Fsecret/'):
         status, _, _ = fetch(base, path)
         assert status == 404, (path, status)

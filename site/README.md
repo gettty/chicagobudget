@@ -6,6 +6,16 @@ The build writes `dist/` only. It does not deploy. Important box pages are pre-r
 
 Production combines this site's existing budget pages with the Lakefront homepage. After building `site/`, run `cd ../lakefront && npm ci && npm run data && VITE_DATA_BASE=/visual-data/ SITE_URL=https://chicagobudget.com npm run build`, then from the repository root run `python3 scripts/assemble_production_site.py` and `python3 tests/check_combined_site.py`. Deploy the resulting `site/dist/`. The assembler retains all old routes and `/data/` files, puts the new explorer's data under `/visual-data/`, and replaces only the homepage and shared landing assets. Do not deploy either unassembled `dist/` by itself.
 
+### Budget fallback performance
+
+Assembly generates `data/fallback/` from the same privacy-safe `/data/` export. Its 512 deterministic hash buckets contain only the fields needed to render each box, its children, breadcrumbs, and citations. A dynamic request reads one bounded bucket instead of parsing the full source catalog, spine, and multiple owner chunks. Every bucket exists, including empty buckets, so an unknown ID returns 404 while missing or invalid data returns retryable 503. No cross-request response cache is used, avoiding stale deployment data and shared request-body state. The public research snapshot is not modified or redacted by this step.
+
+`npm test` regenerates the local fallback data automatically. The assembler regenerates it again from the final `dist/data` export. Validation preserves the existing below-19,000-file safety budget, stricter than the discovery checker's 20,000-asset ceiling. Do not copy fallback shards from a different build.
+
+Assembly also derives exact static-box exclusions in `_routes.json` from actual HTML files. It selects up to 48 shallow, short box paths, covering both slash variants within Pages' 100-rule and 100-character limits. This is deliberately a limited routing improvement, not a claim that all static boxes bypass Functions. No wildcard exclusions, crawler restrictions, or changes to `/_events` are added. The HTTP acceptance suite checks both static exclusions and dynamic descendants.
+
+Run `python3 -m unittest discover -s tests -p 'test_fallback_data.py'` and `python3 -m unittest discover -s tests -p 'test_static_routes.py'` from the repository root. The local comparison harness in `site/checks/fallback-performance.mjs` measures source-data reads and verifies HTML parity against a supplied baseline worker. Its Node measurements are not Cloudflare CPU measurements or a billing forecast. Hosted performance and cost must be rechecked after a separately approved deployment. Opening a PR or passing CI does not authorize a merge or deployment.
+
 After deployment, run `PREVIEW_URL=https://your-preview.pages.dev node tests/navigation-browser.mjs` with Playwright installed (and `CHROMIUM_PATH` if needed). This follows budget category links, validates destination content, and exercises drill-down and return paths rather than only checking hrefs or generated files.
 
 ## Search and dataset discovery

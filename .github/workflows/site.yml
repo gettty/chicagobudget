@@ -59,10 +59,21 @@ jobs:
           python -m unittest discover -s tests -p 'test_discovery.py'
           python -m unittest discover -s tests -p 'test_indexnow.py'
           python -m unittest discover -s tests -p 'test_assembly.py'
+          python -m unittest discover -s tests -p 'test_fallback_data.py'
+          python -m unittest discover -s tests -p 'test_static_routes.py'
           python scripts/assemble_production_site.py
           python tests/check_site_dist.py site/dist
           python tests/check_combined_site.py site/dist
           node site/checks/discovery.mjs
+      - name: Compare budget fallback with pull request base
+        if: github.event_name == 'pull_request'
+        working-directory: .
+        env:
+          BASE_REVISION: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git fetch --no-tags --depth=1 origin "$BASE_REVISION"
+          git show "$BASE_REVISION:site/public/_worker.js" > "$RUNNER_TEMP/baseline-worker.mjs"
+          node site/checks/fallback-performance.mjs --baseline "$RUNNER_TEMP/baseline-worker.mjs" --dist site/dist
       - name: Select browser for discovery checks
         timeout-minutes: 5
         run: |

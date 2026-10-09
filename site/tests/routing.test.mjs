@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync, existsSync} from 'node:fs';
 import {join} from 'node:path';
-import worker from '../public/_worker.js';
+import worker, {fallbackBucket} from '../public/_worker.js';
 
 const base = new URL('../public/', import.meta.url);
 const redirects = readFileSync(new URL('../public/_redirects', import.meta.url), 'utf8');
@@ -11,7 +11,7 @@ const manifest = JSON.parse(readFileSync(new URL('../public/data/manifest.json',
 const assets = {ASSETS: {async fetch(request) {
   const url = new URL(request.url);
   if (url.pathname === '/city/box/city.public-safety/') return new Response('PRERENDERED', {status: 200});
-  if (url.pathname === '/data/manifest.json' || url.pathname === '/data/spine.json' || url.pathname === '/data/sources.json' || /^\/data\/chunks\/[a-f0-9]+\.json$/.test(url.pathname)) {
+  if (url.pathname === '/data/manifest.json' || url.pathname === '/data/spine.json' || url.pathname === '/data/sources.json' || /^\/data\/(?:chunks\/[a-f0-9]+|fallback\/[a-f0-9]{3})\.json$/.test(url.pathname)) {
     const path = join(base.pathname, url.pathname);
     if (existsSync(path)) return new Response(readFileSync(path), {headers: {'Content-Type': 'application/json'}});
   }
@@ -96,10 +96,10 @@ test('published caveats, notes and source details are escaped and visible', asyn
   assert.match(await response.text(), /midyear_2025_coding/);
   const sourceAssets = {ASSETS: {async fetch(req) {
     const url = new URL(req.url);
-    if (url.pathname === '/data/sources.json') {
-      const sources = JSON.parse(readFileSync(new URL('../public/data/sources.json', import.meta.url)));
-      sources[297] = {name: '<Official & source>', page: '12 < 13', note: 'Note & context', url: 'https://example.org/?a=1&b=2'};
-      return Response.json(sources);
+    if (url.pathname === `/data/fallback/${fallbackBucket('city-twice.services-between-funds')}.json`) {
+      const shard = JSON.parse(readFileSync(new URL(`../public${url.pathname}`, import.meta.url)));
+      shard.records['city-twice.services-between-funds'][3] = [{name: '<Official & source>', page: '12 < 13', note: 'Note & context', url: 'https://example.org/?a=1&b=2'}];
+      return Response.json(shard);
     }
     return assets.ASSETS.fetch(req);
   }}};
@@ -113,7 +113,7 @@ test('published caveats, notes and source details are escaped and visible', asyn
 
 test('missing export assets return retryable 503, not a false 404', async () => {
   const broken = {ASSETS: {fetch(req) {
-    if (new URL(req.url).pathname === '/data/manifest.json') return new Response('missing', {status: 404});
+    if (new URL(req.url).pathname.startsWith('/data/fallback/')) return new Response('missing', {status: 404});
     return assets.ASSETS.fetch(req);
   }}};
   const response = await worker.fetch(new Request('https://chicagobudget.com/parks/box/parks.maintaining-the-parks.facilities-management-8460.corporate-fund.611005.1114-0/'), broken);
@@ -125,7 +125,7 @@ test('dynamic HTML is noindex on preview/local hosts and indexable on production
   const valid = '/parks/box/parks.maintaining-the-parks.facilities-management-8460.corporate-fund.611005.1114-0/';
   const unknown = '/city/box/city.unknown-budget-node/';
   const unavailableAssets = {ASSETS: {fetch(req) {
-    if (new URL(req.url).pathname === '/data/manifest.json') return new Response('missing', {status: 404});
+    if (new URL(req.url).pathname.startsWith('/data/fallback/')) return new Response('missing', {status: 404});
     return assets.ASSETS.fetch(req);
   }}};
   for (const host of ['chicagobudget.com', 'preview.chicagobudget.pages.dev', 'localhost']) {
